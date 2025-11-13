@@ -9,6 +9,8 @@ import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
+import android.graphics.Color
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Handler
@@ -70,6 +72,8 @@ class AppUsageService : Service() {
         floatingView = LayoutInflater.from(this).inflate(R.layout.overlay_layout, null)
         overlayTextView = floatingView!!.findViewById(R.id.overlay_text_view)
 
+        updateTextColorBasedOnTheme() // Set initial text color
+
         val layoutParamsType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
         } else {
@@ -86,7 +90,6 @@ class AppUsageService : Service() {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            // Position it to align with the clock, accounting for screen density
             x = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16f, resources.displayMetrics).toInt()
             y = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4f, resources.displayMetrics).toInt()
         }
@@ -94,8 +97,21 @@ class AppUsageService : Service() {
         windowManager.addView(floatingView, params)
     }
 
+    private fun updateTextColorBasedOnTheme() {
+        val currentNightMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        val textColor = if (currentNightMode == Configuration.UI_MODE_NIGHT_YES) {
+            Color.WHITE
+        } else {
+            Color.BLACK
+        }
+        overlayTextView.setTextColor(textColor)
+        // Add a shadow for better visibility against any background
+        overlayTextView.setShadowLayer(1.5f, 1f, 1f, Color.DKGRAY)
+    }
+
     private val updateOverlayRunnable = object : Runnable {
         override fun run() {
+            updateTextColorBasedOnTheme() // Periodically check for theme changes
             updateOverlayWithUsageStats()
             handler.postDelayed(this, UPDATE_INTERVAL)
         }
@@ -118,8 +134,8 @@ class AppUsageService : Service() {
         overlayTextView.text = formatUsageStats(sessionTime, timeInLast24Hours, timeInLast7Days, appOpensLast24Hours)
     }
     
-    // ... (All other helper functions like getForegroundApp, formatUsageStats, etc., remain unchanged)
-    
+    // ... (All other helper functions remain unchanged)
+
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -149,7 +165,7 @@ class AppUsageService : Service() {
     
     private fun getForegroundApp(currentTime: Long): String? {
         var foregroundApp: String? = null
-        val timeWindow = 1000 * 60 // 1 minute window
+        val timeWindow = 1000 * 60
         val events = usageStatsManager.queryEvents(currentTime - timeWindow, currentTime)
         val event = UsageEvents.Event()
         while (events.hasNextEvent()) {
@@ -163,12 +179,10 @@ class AppUsageService : Service() {
     
     private fun getSessionTime(packageName: String, currentTime: Long): Long {
         var sessionTime: Long = 0
-        val startTime = currentTime - TimeUnit.HOURS.toMillis(12) // Look back up to 12 hours
+        val startTime = currentTime - TimeUnit.HOURS.toMillis(12)
         val events = usageStatsManager.queryEvents(startTime, currentTime)
         val event = UsageEvents.Event()
-
         var lastResumeTime: Long? = null
-
         val eventsForPackage = mutableListOf<Pair<Int, Long>>()
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
@@ -176,21 +190,17 @@ class AppUsageService : Service() {
                 eventsForPackage.add(Pair(event.eventType, event.timeStamp))
             }
         }
-
         for (e in eventsForPackage.asReversed()) {
             if (e.first == UsageEvents.Event.ACTIVITY_RESUMED) {
                 lastResumeTime = e.second
                 break 
             }
         }
-        
         if (lastResumeTime != null) {
             sessionTime = currentTime - lastResumeTime
         }
-        
         return sessionTime
     }
-
 
     private fun getTimeInInterval(packageName: String, currentTime: Long, intervalMillis: Long): Long {
         val stats = usageStatsManager.queryUsageStats(
@@ -208,7 +218,6 @@ class AppUsageService : Service() {
         val event = UsageEvents.Event()
         var lastResumeTime = 0L
         val NEW_LAUNCH_THRESHOLD_MILLIS = TimeUnit.SECONDS.toMillis(5)
-
         while (usageEvents.hasNextEvent()) {
             usageEvents.getNextEvent(event)
             if (event.packageName == packageName && event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
@@ -234,11 +243,9 @@ class AppUsageService : Service() {
         val sessionMinutes = TimeUnit.MILLISECONDS.toMinutes(sessionTime)
         val sessionHours = TimeUnit.MILLISECONDS.toHours(sessionTime)
         val sessionDisplay = if(sessionHours > 0) String.format("%d:%02d", sessionHours, sessionMinutes % 60) else "${sessionMinutes}m"
-        
         val hours24 = timeInLast24Hours / 3600000.0
         val hours7days = timeInLast7Days / 3600000.0
-
-        return String.format("%s [%.1fh|%.1fh|%dx]",
+        return String.format("[ %s | %.1fh %.1fh | %dx ]",
             sessionDisplay,
             hours24,
             hours7days,
