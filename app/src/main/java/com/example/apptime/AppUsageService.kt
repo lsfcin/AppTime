@@ -241,15 +241,16 @@ class AppUsageService : Service() {
     }
 
     private fun formatUsageStats(sessionTime: Long, timeInLast24Hours: Long, timeInLast7Days: Long, appOpensLast24Hours: Int): String {
-        val sessionMinutes = TimeUnit.MILLISECONDS.toMinutes(sessionTime)
+        val sessionSeconds = TimeUnit.MILLISECONDS.toSeconds(sessionTime) / 1.0
+        val sessionMinutes = sessionSeconds / 60.0 //TimeUnit.MILLISECONDS.toMinutes(sessionTime)
         val sessionHours = TimeUnit.MILLISECONDS.toHours(sessionTime)
         val sessionDisplay = if(sessionHours > 0) String.format("%d:%02d", sessionHours, sessionMinutes % 60) else "${sessionMinutes}m"
         val hours24 = timeInLast24Hours / 3600000.0
-        val hours7days = timeInLast7Days / 3600000.0
-        return String.format("[ %s | %.1fh %.1fh | %dx ]",
-            sessionDisplay,
+        //val hours7days = timeInLast7Days / (24.0 * 3600000.0)
+        return String.format("%.0fm %.1fh %dx",
+            sessionSeconds,
             hours24,
-            hours7days,
+            //hours7days,
             appOpensLast24Hours
         )
     }
