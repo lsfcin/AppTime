@@ -15,6 +15,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -31,7 +32,6 @@ class AppUsageService : Service() {
     private var floatingView: View? = null
     private lateinit var overlayTextView: TextView
     private val handler = Handler(Looper.getMainLooper())
-    private var updateCounter = 0
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -43,11 +43,11 @@ class AppUsageService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "Service started")
-        createNotificationChannel() // Still needed for foreground service
+        createNotificationChannel()
         startForegroundServiceNotification()
 
         if (floatingView == null) {
-            showTestOverlay()
+            showOverlay()
         }
 
         handler.post(updateOverlayRunnable)
@@ -66,36 +66,9 @@ class AppUsageService : Service() {
         stopForeground(true)
     }
 
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "App Usage Service Channel",
-                NotificationManager.IMPORTANCE_LOW // Use low importance for foreground service notification
-            )
-            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            manager.createNotificationChannel(channel)
-        }
-    }
-
-    private fun startForegroundServiceNotification() {
-        val notificationIntent = Intent(this, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE)
-
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("AppTime Running")
-            .setContentText("Monitoring app usage (overlay active)")
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentIntent(pendingIntent)
-            .setOngoing(true)
-            .build()
-
-        startForeground(1, notification)
-    }
-
-    private fun showTestOverlay() {
-        floatingView = LayoutInflater.from(this).inflate(R.layout.overlay_layout, null) // We'll create overlay_layout next
-        overlayTextView = floatingView!!.findViewById(R.id.overlay_text_view) // We'll define this ID in overlay_layout
+    private fun showOverlay() {
+        floatingView = LayoutInflater.from(this).inflate(R.layout.overlay_layout, null)
+        overlayTextView = floatingView!!.findViewById(R.id.overlay_text_view)
 
         val layoutParamsType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -109,27 +82,71 @@ class AppUsageService : Service() {
             layoutParamsType,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                     WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, // Allows the view to be drawn outside of the screen bounds
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = 0
-            y = 100 // A bit below the status bar
+            // Position it to align with the clock, accounting for screen density
+            x = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16f, resources.displayMetrics).toInt()
+            y = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4f, resources.displayMetrics).toInt()
         }
 
         windowManager.addView(floatingView, params)
-        overlayTextView.text = "Test message 0"
     }
 
     private val updateOverlayRunnable = object : Runnable {
         override fun run() {
-            updateCounter++
-            overlayTextView.text = "Test message $updateCounter"
+            updateOverlayWithUsageStats()
             handler.postDelayed(this, UPDATE_INTERVAL)
         }
     }
 
-    // ... (rest of the app usage tracking functions are kept for later reintegration)
+    private fun updateOverlayWithUsageStats() {
+        val currentTime = System.currentTimeMillis()
+        val foregroundApp = getForegroundApp(currentTime)
+
+        if (foregroundApp == null || foregroundApp == packageName) {
+            overlayTextView.text = "" // Hide text when no app is tracked
+            return
+        }
+
+        val sessionTime = getSessionTime(foregroundApp, currentTime)
+        val timeInLast24Hours = getTimeInInterval(foregroundApp, currentTime, TimeUnit.DAYS.toMillis(1))
+        val timeInLast7Days = getTimeInInterval(foregroundApp, currentTime, TimeUnit.DAYS.toMillis(7))
+        val appOpensLast24Hours = getAppOpensInInterval(foregroundApp, currentTime, TimeUnit.DAYS.toMillis(1))
+        
+        overlayTextView.text = formatUsageStats(sessionTime, timeInLast24Hours, timeInLast7Days, appOpensLast24Hours)
+    }
+    
+    // ... (All other helper functions like getForegroundApp, formatUsageStats, etc., remain unchanged)
+    
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "App Usage Service Channel",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            manager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun startForegroundServiceNotification() {
+        val notificationIntent = Intent(this, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE)
+
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("AppTime is Active")
+            .setContentText("Displaying usage stats over other apps.")
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentIntent(pendingIntent)
+            .setOngoing(true)
+            .build()
+
+        startForeground(1, notification)
+    }
+    
     private fun getForegroundApp(currentTime: Long): String? {
         var foregroundApp: String? = null
         val timeWindow = 1000 * 60 // 1 minute window
