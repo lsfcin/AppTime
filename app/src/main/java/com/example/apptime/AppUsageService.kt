@@ -100,13 +100,14 @@ class AppUsageService : Service() {
     private fun updateTextColorBasedOnTheme() {
         val currentNightMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
         val textColor = if (currentNightMode == Configuration.UI_MODE_NIGHT_YES) {
-            Color.WHITE
+            Color.LTGRAY
         } else {
-            Color.BLACK
+            Color.DKGRAY
         }
         overlayTextView.setTextColor(textColor)
+        overlayTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
         // Add a shadow for better visibility against any background
-        overlayTextView.setShadowLayer(1.5f, 1f, 1f, Color.DKGRAY)
+        //overlayTextView.setShadowLayer(1.5f, 1f, 1f, Color.DKGRAY)
     }
 
     private val updateOverlayRunnable = object : Runnable {
