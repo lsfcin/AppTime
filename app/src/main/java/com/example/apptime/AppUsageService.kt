@@ -128,8 +128,11 @@ class AppUsageService : Service() {
         }
 
         val sessionTime = getSessionTime(foregroundApp, currentTime)
-        val appName = getAppName(foregroundApp)
-        overlayTextView.text = formatUsageStats(appName, sessionTime)
+        val appOpensLast24Hours = getAppOpensInInterval(foregroundApp, currentTime, TimeUnit.DAYS.toMillis(1))
+        val timeInLast24Hours = getTimeInInterval(foregroundApp, currentTime, TimeUnit.DAYS.toMillis(1))
+        val timeInLast7Days = getTimeInInterval(foregroundApp, currentTime, TimeUnit.DAYS.toMillis(7))
+
+        overlayTextView.text = formatUsageStats(sessionTime, appOpensLast24Hours, timeInLast24Hours, timeInLast7Days)
     }
     
     private fun createNotificationChannel() {
@@ -256,9 +259,17 @@ class AppUsageService : Service() {
         }
     }
 
-    private fun formatUsageStats(appName: String, sessionTime: Long): String {
+    private fun formatUsageStats(sessionTime: Long, appOpensLast24Hours: Int, timeInLast24Hours: Long, timeInLast7Days: Long): String {
         val sessionSeconds = TimeUnit.MILLISECONDS.toSeconds(sessionTime)
-        return "$appName: ${sessionSeconds}s"
+        val minutesInLast24Hours = TimeUnit.MILLISECONDS.toMinutes(timeInLast24Hours)
+        val hoursInLast7Days = timeInLast7Days / 3600000.0
+
+        return String.format("%ds %dm %dx %.1fh",
+            appOpensLast24Hours,
+            sessionSeconds,
+            minutesInLast24Hours,
+            hoursInLast7Days
+        )
     }
 
     companion object {
