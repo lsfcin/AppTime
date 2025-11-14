@@ -184,20 +184,27 @@ class AppUsageService : Service() {
 
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
-            if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
-                if (lastResumedPackage != event.packageName) {
-                    lastResumedPackage = event.packageName
-                    if (lastResumedPackage == packageName) {
-                        sessionStartTime = event.timeStamp
+
+            when (event.eventType) {
+                UsageEvents.Event.ACTIVITY_RESUMED -> {
+                    if (lastResumedPackage != event.packageName) {
+                        lastResumedPackage = event.packageName
+                        if (lastResumedPackage == packageName) {
+                            sessionStartTime = event.timeStamp
+                        }
+                    }
+                    if (event.packageName == packageName) {
+                        lastResumeTimeForPackage = event.timeStamp
                     }
                 }
-            }
-
-            if (event.packageName == packageName) {
-                if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
-                    lastResumeTimeForPackage = event.timeStamp
-                } else if (event.eventType == UsageEvents.Event.ACTIVITY_PAUSED) {
-                    lastPauseTimeForPackage = event.timeStamp
+                UsageEvents.Event.ACTIVITY_PAUSED -> {
+                    if (event.packageName == packageName) {
+                        lastPauseTimeForPackage = event.timeStamp
+                    }
+                }
+                UsageEvents.Event.KEYGUARD_SHOWN -> {
+                    // Screen lock ends any session. Reset state.
+                    lastResumedPackage = null
                 }
             }
         }
