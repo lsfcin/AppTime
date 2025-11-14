@@ -34,6 +34,7 @@ class AppUsageService : Service() {
     private var floatingView: View? = null
     private lateinit var overlayTextView: TextView
     private val handler = Handler(Looper.getMainLooper())
+    private var launcherPackageName: String? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -41,6 +42,7 @@ class AppUsageService : Service() {
         super.onCreate()
         usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        launcherPackageName = getLauncherPackageName()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -127,12 +129,19 @@ class AppUsageService : Service() {
             return
         }
 
-        val sessionTime = getSessionTime(foregroundApp, currentTime)
-        val appOpensLast24Hours = getAppOpensInInterval(foregroundApp, currentTime, TimeUnit.DAYS.toMillis(1))
-        val timeInLast24Hours = getTimeInInterval(foregroundApp, currentTime, TimeUnit.DAYS.toMillis(1))
-        val timeInLast7Days = getTimeInInterval(foregroundApp, currentTime, TimeUnit.DAYS.toMillis(7))
+        if (foregroundApp == launcherPackageName) {
+            val sessionTime = getPhoneSessionTime(currentTime)
+            val unlockCount = getUnlockCountInInterval(currentTime, TimeUnit.DAYS.toMillis(1))
+            val totalScreenTime24h = getTotalScreenTimeInInterval(currentTime, TimeUnit.DAYS.toMillis(1))
+            overlayTextView.text = formatPhoneUsageStats(sessionTime, unlockCount, totalScreenTime24h)
+        } else {
+            val sessionTime = getSessionTime(foregroundApp, currentTime)
+            val appOpensLast24Hours = getAppOpensInInterval(foregroundApp, currentTime, TimeUnit.DAYS.toMillis(1))
+            val timeInLast24Hours = getTimeInInterval(foregroundApp, currentTime, TimeUnit.DAYS.toMillis(1))
+            val timeInLast7Days = getTimeInInterval(foregroundApp, currentTime, TimeUnit.DAYS.toMillis(7))
 
-        overlayTextView.text = formatUsageStats(sessionTime, appOpensLast24Hours, timeInLast24Hours, timeInLast7Days)
+            overlayTextView.text = formatUsageStats(sessionTime, appOpensLast24Hours, timeInLast24Hours, timeInLast7Days)
+        }
     }
     
     private fun createNotificationChannel() {
@@ -260,15 +269,75 @@ class AppUsageService : Service() {
     }
 
     private fun formatUsageStats(sessionTime: Long, appOpensLast24Hours: Int, timeInLast24Hours: Long, timeInLast7Days: Long): String {
-        val sessionMinutes = TimeUnit.MILLISECONDS.toMinutes(sessionTime)
+        val sessionSeconds = TimeUnit.MILLISECONDS.toSeconds(sessionTime)
         val minutesInLast24Hours = TimeUnit.MILLISECONDS.toMinutes(timeInLast24Hours)
-        //val hoursInLast7Days = timeInLast7Days / 3600000.0
+        val hoursInLast7Days = timeInLast7Days / 3600000.0
 
-        return String.format("%dm %dm %dx",
-            sessionMinutes,
+        return String.format("%dx %ds %dm %.1fh",
+            appOpensLast24Hours,
+            sessionSeconds,
             minutesInLast24Hours,
-            appOpensLast24Hours
-            //hoursInLast7Days
+            hoursInLast7Days
+        )
+    }
+
+    private fun getLauncherPackageName(): String? {
+        val intent = Intent(Intent.ACTION_MAIN)
+        intent.addCategory(Intent.CATEGORY_HOME)
+        val resolveInfo = packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
+        return resolveInfo?.activityInfo?.packageName
+    }
+
+    private fun getPhoneSessionTime(currentTime: Long): Long {
+        val events = usageStatsManager.queryEvents(currentTime - TimeUnit.DAYS.toMillis(1), currentTime)
+        val event = UsageEvents.Event()
+        var lastUnlockTime = 0L
+        var lastLockTime = 0L
+
+        while (events.hasNextEvent()) {
+            events.getNextEvent(event)
+            when (event.eventType) {
+                UsageEvents.Event.KEYGUARD_HIDDEN -> lastUnlockTime = event.timeStamp
+                UsageEvents.Event.KEYGUARD_SHOWN -> lastLockTime = event.timeStamp
+            }
+        }
+
+        if (lastUnlockTime > lastLockTime) {
+            return currentTime - lastUnlockTime
+        }
+        return 0L
+    }
+
+    private fun getTotalScreenTimeInInterval(currentTime: Long, intervalMillis: Long): Long {
+        val stats = usageStatsManager.queryUsageStats(
+            UsageStatsManager.INTERVAL_DAILY,
+            currentTime - intervalMillis,
+            currentTime
+        )
+        return stats.sumOf { it.totalTimeInForeground }
+    }
+
+    private fun getUnlockCountInInterval(currentTime: Long, intervalMillis: Long): Int {
+        val usageEvents = usageStatsManager.queryEvents(currentTime - intervalMillis, currentTime)
+        var unlockCount = 0
+        val event = UsageEvents.Event()
+        while (usageEvents.hasNextEvent()) {
+            usageEvents.getNextEvent(event)
+            if (event.eventType == UsageEvents.Event.KEYGUARD_HIDDEN) {
+                unlockCount++
+            }
+        }
+        return unlockCount
+    }
+
+    private fun formatPhoneUsageStats(sessionTime: Long, unlockCount: Int, totalScreenTime: Long): String {
+        val sessionSeconds = TimeUnit.MILLISECONDS.toSeconds(sessionTime)
+        val hoursInLast24Hours = totalScreenTime / 3600000.0
+
+        return String.format("%dx %ds %.1fh",
+            unlockCount,
+            sessionSeconds,
+            hoursInLast24Hours
         )
     }
 
