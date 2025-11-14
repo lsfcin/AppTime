@@ -138,9 +138,7 @@ class AppUsageService : Service() {
             val sessionTime = getSessionTime(foregroundApp, currentTime)
             val appOpensLast24Hours = getAppOpensInInterval(foregroundApp, currentTime, TimeUnit.DAYS.toMillis(1))
             val timeInLast24Hours = getTimeInInterval(foregroundApp, currentTime, TimeUnit.DAYS.toMillis(1))
-            val timeInLast7Days = getTimeInInterval(foregroundApp, currentTime, TimeUnit.DAYS.toMillis(7))
-
-            overlayTextView.text = formatUsageStats(sessionTime, appOpensLast24Hours, timeInLast24Hours, timeInLast7Days)
+            overlayTextView.text = formatUsageStats(sessionTime, appOpensLast24Hours, timeInLast24Hours)
         }
     }
     
@@ -268,16 +266,14 @@ class AppUsageService : Service() {
         }
     }
 
-    private fun formatUsageStats(sessionTime: Long, appOpensLast24Hours: Int, timeInLast24Hours: Long, timeInLast7Days: Long): String {
-        val sessionSeconds = TimeUnit.MILLISECONDS.toSeconds(sessionTime)
+    private fun formatUsageStats(sessionTime: Long, appOpensLast24Hours: Int, timeInLast24Hours: Long): String {
+        val sessionMinutes = TimeUnit.MILLISECONDS.toMinutes(sessionTime)
         val minutesInLast24Hours = TimeUnit.MILLISECONDS.toMinutes(timeInLast24Hours)
-        val hoursInLast7Days = timeInLast7Days / 3600000.0
 
-        return String.format("%dx %ds %dm %.1fh",
-            appOpensLast24Hours,
-            sessionSeconds,
+        return String.format("%dm %dm %dx",
+            sessionMinutes,
             minutesInLast24Hours,
-            hoursInLast7Days
+            appOpensLast24Hours
         )
     }
 
@@ -331,13 +327,13 @@ class AppUsageService : Service() {
     }
 
     private fun formatPhoneUsageStats(sessionTime: Long, unlockCount: Int, totalScreenTime: Long): String {
-        val sessionSeconds = TimeUnit.MILLISECONDS.toSeconds(sessionTime)
+        val sessionMinutes = TimeUnit.MILLISECONDS.toMinutes(sessionTime)
         val hoursInLast24Hours = totalScreenTime / 3600000.0
 
-        return String.format("%dx %ds %.1fh",
-            unlockCount,
-            sessionSeconds,
-            hoursInLast24Hours
+        return String.format("%dm %.1fh %dx",
+            sessionMinutes,
+            hoursInLast24Hours,
+            unlockCount
         )
     }
 
