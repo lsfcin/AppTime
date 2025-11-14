@@ -128,15 +128,10 @@ class AppUsageService : Service() {
         }
 
         val sessionTime = getSessionTime(foregroundApp, currentTime)
-        val timeInLast24Hours = getTimeInInterval(foregroundApp, currentTime, TimeUnit.DAYS.toMillis(1))
-        val timeInLast7Days = getTimeInInterval(foregroundApp, currentTime, TimeUnit.DAYS.toMillis(7))
-        val appOpensLast24Hours = getAppOpensInInterval(foregroundApp, currentTime, TimeUnit.DAYS.toMillis(1))
-        
-        overlayTextView.text = formatUsageStats(sessionTime, timeInLast24Hours, timeInLast7Days, appOpensLast24Hours)
+        val appName = getAppName(foregroundApp)
+        overlayTextView.text = formatUsageStats(appName, sessionTime)
     }
     
-    // ... (All other helper functions remain unchanged)
-
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -166,7 +161,7 @@ class AppUsageService : Service() {
     
     private fun getForegroundApp(currentTime: Long): String? {
         var foregroundApp: String? = null
-        val timeWindow = 1000 * 60
+        val timeWindow = 1000 * 60 * 5 // 5 minute window
         val events = usageStatsManager.queryEvents(currentTime - timeWindow, currentTime)
         val event = UsageEvents.Event()
         while (events.hasNextEvent()) {
@@ -179,29 +174,43 @@ class AppUsageService : Service() {
     }
     
     private fun getSessionTime(packageName: String, currentTime: Long): Long {
-        var sessionTime: Long = 0
-        val startTime = currentTime - TimeUnit.HOURS.toMillis(12)
-        val events = usageStatsManager.queryEvents(startTime, currentTime)
+        val events = usageStatsManager.queryEvents(currentTime - TimeUnit.HOURS.toMillis(1), currentTime)
         val event = UsageEvents.Event()
-        var lastResumeTime: Long? = null
-        val eventsForPackage = mutableListOf<Pair<Int, Long>>()
+
+        var sessionStartTime = 0L
+        var lastResumedPackage: String? = null
+        var lastResumeTimeForPackage = 0L
+        var lastPauseTimeForPackage = 0L
+
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
+            if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
+                if (lastResumedPackage != event.packageName) {
+                    lastResumedPackage = event.packageName
+                    if (lastResumedPackage == packageName) {
+                        sessionStartTime = event.timeStamp
+                    }
+                }
+            }
+
             if (event.packageName == packageName) {
-                eventsForPackage.add(Pair(event.eventType, event.timeStamp))
+                if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
+                    lastResumeTimeForPackage = event.timeStamp
+                } else if (event.eventType == UsageEvents.Event.ACTIVITY_PAUSED) {
+                    lastPauseTimeForPackage = event.timeStamp
+                }
             }
         }
-        for (e in eventsForPackage.asReversed()) {
-            if (e.first == UsageEvents.Event.ACTIVITY_RESUMED) {
-                lastResumeTime = e.second
-                break 
+
+        if (lastResumedPackage == packageName && lastResumeTimeForPackage > lastPauseTimeForPackage) {
+            if (sessionStartTime > 0) {
+                return currentTime - sessionStartTime
             }
         }
-        if (lastResumeTime != null) {
-            sessionTime = currentTime - lastResumeTime
-        }
-        return sessionTime
+
+        return 0L
     }
+
 
     private fun getTimeInInterval(packageName: String, currentTime: Long, intervalMillis: Long): Long {
         val stats = usageStatsManager.queryUsageStats(
@@ -240,23 +249,14 @@ class AppUsageService : Service() {
         }
     }
 
-    private fun formatUsageStats(sessionTime: Long, timeInLast24Hours: Long, timeInLast7Days: Long, appOpensLast24Hours: Int): String {
-        val sessionSeconds = TimeUnit.MILLISECONDS.toSeconds(sessionTime) / 1.0
-        val sessionMinutes = sessionSeconds / 60.0 //TimeUnit.MILLISECONDS.toMinutes(sessionTime)
-        val sessionHours = TimeUnit.MILLISECONDS.toHours(sessionTime)
-        val sessionDisplay = if(sessionHours > 0) String.format("%d:%02d", sessionHours, sessionMinutes % 60) else "${sessionMinutes}m"
-        val hours24 = timeInLast24Hours / 3600000.0
-        //val hours7days = timeInLast7Days / (24.0 * 3600000.0)
-        return String.format("%.0fm %.1fh %dx",
-            sessionSeconds,
-            hours24,
-            //hours7days,
-            appOpensLast24Hours
-        )
+    private fun formatUsageStats(appName: String, sessionTime: Long): String {
+        val sessionSeconds = TimeUnit.MILLISECONDS.toSeconds(sessionTime)
+        return "$appName: ${sessionSeconds}s"
     }
 
     companion object {
         private const val TAG = "AppUsageService"
         private const val UPDATE_INTERVAL = 2000L
+        private const val SESSION_CONTINUITY_THRESHOLD = 5000L // 5 seconds
     }
 }
