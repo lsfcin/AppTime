@@ -260,15 +260,15 @@ class AppUsageService : Service() {
     }
 
     private fun formatUsageStats(sessionTime: Long, appOpensLast24Hours: Int, timeInLast24Hours: Long, timeInLast7Days: Long): String {
-        val sessionSeconds = TimeUnit.MILLISECONDS.toSeconds(sessionTime)
+        val sessionMinutes = TimeUnit.MILLISECONDS.toMinutes(sessionTime)
         val minutesInLast24Hours = TimeUnit.MILLISECONDS.toMinutes(timeInLast24Hours)
-        val hoursInLast7Days = timeInLast7Days / 3600000.0
+        //val hoursInLast7Days = timeInLast7Days / 3600000.0
 
-        return String.format("%ds %dm %dx %.1fh",
-            appOpensLast24Hours,
-            sessionSeconds,
+        return String.format("%dm %dm %dx",
+            sessionMinutes,
             minutesInLast24Hours,
-            hoursInLast7Days
+            appOpensLast24Hours
+            //hoursInLast7Days
         )
     }
 
