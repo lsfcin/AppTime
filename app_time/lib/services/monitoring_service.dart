@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:usage_stats/usage_stats.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
-import 'overlay_main.dart';
+import '../config/overlay_config.dart';
 
 class AppTracker {
   static String lastApp = "";
@@ -22,9 +22,7 @@ class AppTracker {
   static bool get isPolling => _pollTimer?.isActive ?? false;
 
   static void startSmartPolling() {
-    if (isPolling) {
-      return;
-    }
+    if (isPolling) return;
 
     _pollTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
       String currentApp;
@@ -35,19 +33,13 @@ class AppTracker {
           DateTime.now(),
         );
 
-        if (usageStats.isEmpty) {
-          return;
-        }
+        if (usageStats.isEmpty) return;
 
         usageStats = usageStats
-            .where(
-              (item) => item.packageName != null && item.lastTimeUsed != null,
-            )
+            .where((item) => item.packageName != null && item.lastTimeUsed != null)
             .toList();
 
-        if (usageStats.isEmpty) {
-          return;
-        }
+        if (usageStats.isEmpty) return;
 
         usageStats.sort((a, b) => b.lastTimeUsed!.compareTo(a.lastTimeUsed!));
         currentApp = usageStats.first.packageName!;
@@ -117,16 +109,15 @@ class AppTracker {
 
   static Future<void> _ensureOverlayVisible() async {
     await FlutterOverlayWindow.showOverlay(
-      alignment: kOverlayWindowAlignment,
-      height: kOverlayWindowHeight,
-      width: kOverlayWindowWidth,
+      alignment: OverlayConfig.alignment,
+      height: OverlayConfig.height,
+      width: OverlayConfig.width,
       enableDrag: false,
     );
   }
 
   static Future<void> _shareDataSafely(Map<String, dynamic> payload) async {
     await FlutterOverlayWindow.shareData(payload);
-
     Timer(const Duration(milliseconds: 280), () {
       FlutterOverlayWindow.shareData(payload);
     });
@@ -135,7 +126,6 @@ class AppTracker {
   static Future<bool> _wasUnlockedRecently() async {
     final end = DateTime.now();
     final start = end.subtract(const Duration(seconds: 25));
-
     try {
       final events = await UsageStats.queryEvents(start, end);
       return events.any((event) => event.eventType == "18");
@@ -147,28 +137,18 @@ class AppTracker {
   static Future<int> getOpenCount24h(String packageName) async {
     DateTime end = DateTime.now();
     DateTime start = end.subtract(const Duration(hours: 24));
-
     List<EventUsageInfo> events = await UsageStats.queryEvents(start, end);
-    return events
-        .where((e) => e.packageName == packageName && e.eventType == "1")
-        .length;
+    return events.where((e) => e.packageName == packageName && e.eventType == "1").length;
   }
 
   static Future<int> getUnlockCount24h() async {
     DateTime end = DateTime.now();
     DateTime start = end.subtract(const Duration(hours: 24));
-
     try {
       List<EventUsageInfo> events = await UsageStats.queryEvents(start, end);
       final unlockEvents = events.where((e) => e.eventType == "18").length;
-
-      if (unlockEvents > 0) {
-        return unlockEvents;
-      }
-
-      return events
-          .where((e) => launchers.contains(e.packageName) && e.eventType == "1")
-          .length;
+      if (unlockEvents > 0) return unlockEvents;
+      return events.where((e) => launchers.contains(e.packageName) && e.eventType == "1").length;
     } catch (_) {
       return 0;
     }
@@ -177,13 +157,9 @@ class AppTracker {
   static Future<String> getAppUsage24h(String packageName) async {
     DateTime end = DateTime.now();
     DateTime start = end.subtract(const Duration(hours: 24));
-
     List<UsageInfo> usageStats = await UsageStats.queryUsageStats(start, end);
-
     try {
-      UsageInfo stats = usageStats.firstWhere(
-        (info) => info.packageName == packageName,
-      );
+      UsageInfo stats = usageStats.firstWhere((info) => info.packageName == packageName);
       int totalMs = int.parse(stats.totalTimeInForeground!);
       double minutes = totalMs / 1000 / 60;
       return _format24hUsage(minutes);
@@ -195,24 +171,14 @@ class AppTracker {
   static Future<String> getDeviceUsage24h() async {
     DateTime end = DateTime.now();
     DateTime start = end.subtract(const Duration(hours: 24));
-
     try {
       List<UsageInfo> usageStats = await UsageStats.queryUsageStats(start, end);
       int totalMs = 0;
-
       for (final item in usageStats) {
-        if (item.totalTimeInForeground == null || item.packageName == null) {
-          continue;
-        }
-
-        final packageName = item.packageName!;
-        if (launchers.contains(packageName)) {
-          continue;
-        }
-
+        if (item.totalTimeInForeground == null || item.packageName == null) continue;
+        if (launchers.contains(item.packageName!)) continue;
         totalMs += int.tryParse(item.totalTimeInForeground!) ?? 0;
       }
-
       final totalMinutes = totalMs / 1000 / 60;
       return _format24hUsage(totalMinutes);
     } catch (_) {
@@ -221,10 +187,7 @@ class AppTracker {
   }
 
   static String _format24hUsage(double minutes) {
-    if (minutes < 60) {
-      final rounded = minutes.round();
-      return "$rounded min";
-    }
+    if (minutes < 60) return "${minutes.round()} min";
     return "${(minutes / 60).toStringAsFixed(1)} hrs";
   }
 }

@@ -3,10 +3,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
-const OverlayAlignment kOverlayWindowAlignment = OverlayAlignment.center;
-const int kOverlayWindowHeight = 600;
-const int kOverlayWindowWidth = 1000;
-
 class AppTimeOverlay extends StatefulWidget {
   const AppTimeOverlay({super.key});
 
@@ -25,13 +21,10 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
   @override
   void initState() {
     super.initState();
-    // Fallback curto para evitar tela vazia caso o primeiro payload atrase.
     _currentText = '...';
     _opacity = 1.0;
     _sequenceTimer = Timer(const Duration(seconds: 6), () {
-      if (!mounted || _currentText != '...') {
-        return;
-      }
+      if (!mounted || _currentText != '...') return;
       setState(() => _opacity = 0.0);
     });
 
@@ -58,25 +51,14 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
   }
 
   Map<String, dynamic> _normalizePayload(dynamic raw) {
-    if (raw is Map<String, dynamic>) {
-      return raw;
-    }
-
-    if (raw is Map) {
-      return raw.map((key, value) => MapEntry(key.toString(), value));
-    }
-
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) return raw.map((key, value) => MapEntry(key.toString(), value));
     if (raw is String && raw.isNotEmpty) {
       try {
         final decoded = jsonDecode(raw);
-        if (decoded is Map) {
-          return decoded.map((key, value) => MapEntry(key.toString(), value));
-        }
-      } catch (_) {
-        return <String, dynamic>{};
-      }
+        if (decoded is Map) return decoded.map((key, value) => MapEntry(key.toString(), value));
+      } catch (_) {}
     }
-
     return <String, dynamic>{};
   }
 
@@ -95,9 +77,7 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
     });
 
     _sequenceTimer = Timer(const Duration(seconds: 5), () {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() => _opacity = 0.0);
     });
   }
@@ -123,15 +103,11 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
     });
 
     _sequenceTimer = Timer(const Duration(seconds: 3), () {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() => _opacity = 0.0);
 
       _sequenceTimer = Timer(_fadeDuration, () {
-        if (!mounted) {
-          return;
-        }
+        if (!mounted) return;
         setState(() {
           _currentText = deviceUsage24h;
           _opacity = 1.0;
@@ -141,12 +117,8 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
   }
 
   void _handleLauncherTick(String deviceUsage24h) {
-    if (_currentText.contains(':') ||
-        _currentText.contains('min') ||
-        _currentText.contains('hrs')) {
-      setState(() {
-        _currentText = deviceUsage24h;
-      });
+    if (_currentText.contains(':') || _currentText.contains('min') || _currentText.contains('hrs')) {
+      setState(() => _currentText = deviceUsage24h);
     }
   }
 
@@ -156,9 +128,7 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
     final minutes = (duration.inMinutes % 60).toString().padLeft(2, '0');
     final secs = (duration.inSeconds % 60).toString().padLeft(2, '0');
 
-    if (hours > 0) {
-      return '$hours:$minutes:$secs';
-    }
+    if (hours > 0) return '$hours:$minutes:$secs';
     return '${duration.inMinutes}:$secs';
   }
 
@@ -183,10 +153,7 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
               decoration: BoxDecoration(
                 color: chipColor,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: clockColor.withValues(alpha: 0.30),
-                  width: 1,
-                ),
+                border: Border.all(color: clockColor.withValues(alpha: 0.30), width: 1),
               ),
               child: Text(
                 _currentText,
@@ -202,9 +169,7 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
                   letterSpacing: 0.2,
                   shadows: [
                     Shadow(
-                      color: (isDark ? Colors.black : Colors.white).withValues(
-                        alpha: 0.45,
-                      ),
+                      color: (isDark ? Colors.black : Colors.white).withValues(alpha: 0.45),
                       blurRadius: 3,
                       offset: const Offset(0, 1),
                     ),
