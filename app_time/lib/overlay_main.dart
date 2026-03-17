@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
 const OverlayAlignment kOverlayWindowAlignment = OverlayAlignment.center;
-const int kOverlayWindowHeight = 160;
+const int kOverlayWindowHeight = 600;
 const int kOverlayWindowWidth = 1000;
 
 class AppTimeOverlay extends StatefulWidget {

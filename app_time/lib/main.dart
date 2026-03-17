@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:usage_stats/usage_stats.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 import 'overlay_main.dart';
 import 'logic_service.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const MaterialApp(
     debugShowCheckedModeBanner: false,
@@ -12,7 +14,7 @@ void main() {
   ));
 }
 
-// PONTO DE ENTRADA DO OVERLAY (Obrigatório)
+// 1. PONTO DE ENTRADA DO OVERLAY
 @pragma("vm:entry-point")
 void overlayMain() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +22,32 @@ void overlayMain() {
     debugShowCheckedModeBanner: false,
     home: AppTimeOverlay(),
   ));
+}
+
+// 2. PONTO DE ENTRADA DO SERVIÇO DE BACKGROUND
+@pragma('vm:entry-point')
+void onStart(ServiceInstance service) async {
+  WidgetsFlutterBinding.ensureInitialized();
+  AppTracker.startSmartPolling();
+}
+
+// A Configuração agora usa os padrões seguros do pacote
+Future<void> initializeBackgroundService() async {
+  final service = FlutterBackgroundService();
+  await service.configure(
+    androidConfiguration: AndroidConfiguration(
+      onStart: onStart,
+      autoStart: false,
+      isForegroundMode: true,
+      // REMOVIDO: notificationChannelId, titles e IDs customizados.
+      // O pacote agora vai usar o canal padrão interno dele que nunca falha.
+    ),
+    iosConfiguration: IosConfiguration(
+      autoStart: false,
+      onForeground: onStart,
+      onBackground: (ServiceInstance service) => false,
+    ),
+  );
 }
 
 class SetupScreen extends StatefulWidget {
@@ -33,11 +61,13 @@ class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
   bool _monitoringStarted = false;
   bool isOverlayGranted = false;
   bool isUsageStatsGranted = false;
+  bool isBatteryOptIgnored = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // REMOVIDO: A inicialização do serviço não acontece mais aqui!
     _checkPermissions();
   }
 
@@ -54,40 +84,93 @@ class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
     }
   }
 
-  // Verifica o estado atual das permissões
   Future<void> _checkPermissions() async {
-    bool overlay = await FlutterOverlayWindow.isPermissionGranted();
-    bool usage = await UsageStats.checkUsagePermission() ?? false;
+    try {
+      bool overlay = await FlutterOverlayWindow.isPermissionGranted();
+      bool usage = await UsageStats.checkUsagePermission() ?? false;
+      
+      bool battery = false;
+      try {
+        battery = await Permission.ignoreBatteryOptimizations.isGranted;
+      } catch (_) {}
 
-    setState(() {
-      isOverlayGranted = overlay;
-      isUsageStatsGranted = usage;
-    });
-
-    // Se ambas estiverem ok, já inicia o serviço automaticamente
-    if (overlay && usage && !_monitoringStarted) {
-      AppTracker.startSmartPolling();
-      _monitoringStarted = true;
+      if (mounted) {
+        setState(() {
+          isOverlayGranted = overlay;
+          isUsageStatsGranted = usage;
+          isBatteryOptIgnored = battery;
+        });
+      }
+    } catch (e) {
+      debugPrint("Erro em _checkPermissions: $e");
     }
   }
 
   Future<void> _startMonitoring() async {
-    await _checkPermissions();
-    if (!mounted) {
-      return;
-    }
-
     if (isOverlayGranted && isUsageStatsGranted) {
-      AppTracker.startSmartPolling();
-      setState(() => _monitoringStarted = true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Monitoramento ativo. Troque de app para ver o overlay.")),
-      );
-      return;
-    }
+      try {
+        // NOVO: Pede a permissão de notificação (Obrigatório para o Foreground Service não crashar)
+        if (await Permission.notification.isDenied) {
+          await Permission.notification.request();
+        }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Conceda as duas permissões para iniciar.")),
+        // Agora sim, configuramos e iniciamos o serviço
+        await initializeBackgroundService();
+        
+        final service = FlutterBackgroundService();
+        bool isRunning = await service.isRunning();
+        
+        if (!isRunning) {
+          await service.startService(); 
+        }
+        
+        setState(() => _monitoringStarted = true);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Monitoramento persistente ativo!")),
+          );
+        }
+      } catch (e) {
+        debugPrint("Erro crítico ao iniciar serviço: $e");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Erro ao iniciar serviço: $e")),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _showInstructionDialog({
+    required String title,
+    required String instruction,
+    required VoidCallback onConfirm,
+  }) async {
+    return showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(instruction),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), 
+            child: const Text("CANCELAR", style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context); 
+              onConfirm(); 
+            },
+            style: ElevatedButton.styleFrom(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text("ENTENDI"),
+          ),
+        ],
+      ),
     );
   }
 
@@ -100,30 +183,68 @@ class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _permissionTile(
-              "Permissão de Sobreposição",
-              isOverlayGranted,
-              () async {
-                await FlutterOverlayWindow.requestPermission();
-                _checkPermissions();
-              },
+            const Text(
+              "Precisamos de algumas permissões para que o AppTime funcione perfeitamente.",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, color: Colors.black87),
             ),
-            const SizedBox(height: 20),
-            _permissionTile(
-              "Acesso às Estatísticas de Uso",
-              isUsageStatsGranted,
-              () async {
-                await UsageStats.grantUsagePermission();
-                _checkPermissions();
-              },
-            ),
+            const SizedBox(height: 30),
+            
+            _permissionTile("Janela Flutuante", isOverlayGranted, () {
+              _showInstructionDialog(
+                title: "Sobreposição de Tela",
+                instruction: "Na próxima tela, procure pelo 'AppTime' na lista e ative a chave. Isso permite que o nosso contador apareça por cima dos outros aplicativos.",
+                onConfirm: () async {
+                  try {
+                    await Permission.systemAlertWindow.request();
+                  } catch (_) {}
+                  _checkPermissions();
+                },
+              );
+            }),
+            const SizedBox(height: 12),
+            
+            _permissionTile("Estatísticas de Uso", isUsageStatsGranted, () {
+              _showInstructionDialog(
+                title: "Acesso aos Dados de Uso",
+                instruction: "Precisamos saber qual aplicativo está aberto para contar o seu tempo. Na lista a seguir, clique no 'AppTime' e permita o acesso.",
+                onConfirm: () async {
+                  try {
+                    await UsageStats.grantUsagePermission();
+                  } catch (_) {}
+                  _checkPermissions();
+                },
+              );
+            }),
+            const SizedBox(height: 12),
+            
+            _permissionTile("Manter Ativo (Bateria)", isBatteryOptIgnored, () {
+              _showInstructionDialog(
+                title: "Funcionamento em Segundo Plano",
+                instruction: "Para o app não parar de funcionar sozinho, permita que ele ignore a otimização de bateria do sistema no próximo aviso.",
+                onConfirm: () async {
+                  try {
+                    await Permission.ignoreBatteryOptimizations.request();
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Por favor, configure manualmente nas configurações de bateria do celular.")),
+                      );
+                    }
+                  }
+                  _checkPermissions();
+                },
+              );
+            }),
+            
             const Spacer(),
             ElevatedButton(
-              onPressed: (isOverlayGranted && isUsageStatsGranted) 
-                ? _startMonitoring
-                : null,
-              style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-              child: const Text("INICIAR MONITORAMENTO"),
+              onPressed: (isOverlayGranted && isUsageStatsGranted) ? _startMonitoring : null,
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(55),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text("INICIAR MONITORAMENTO", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -133,14 +254,15 @@ class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
 
   Widget _permissionTile(String title, bool granted, VoidCallback onPress) {
     return ListTile(
-      title: Text(title),
-      trailing: Icon(
-        granted ? Icons.check_circle : Icons.error,
-        color: granted ? Colors.green : Colors.red,
-      ),
+      title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+      trailing: Icon(granted ? Icons.check_circle : Icons.error, color: granted ? Colors.green : Colors.red),
       onTap: granted ? null : onPress,
-      tileColor: Colors.grey[200],
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      tileColor: Colors.grey[100],
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: granted ? Colors.green.withOpacity(0.5) : Colors.transparent),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
     );
   }
 }
