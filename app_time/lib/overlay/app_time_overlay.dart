@@ -11,10 +11,11 @@ class AppTimeOverlay extends StatefulWidget {
 }
 
 class _AppTimeOverlayState extends State<AppTimeOverlay> {
-  static const Duration _fadeDuration = Duration(seconds: 3);
+  static const Duration _fadeDuration = Duration(seconds: 4);
 
   double _opacity = 0.0;
   String _currentText = '';
+  double _topOffset = 40.0;
   Timer? _sequenceTimer;
   StreamSubscription<dynamic>? _overlaySubscription;
 
@@ -32,6 +33,11 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
       final data = _normalizePayload(raw);
       final type = data['type'] as String?;
 
+      if (type == 'SET_OFFSET') {
+        setState(() {
+          _topOffset = (data['offset'] as num?)?.toDouble() ?? 40.0;
+        });
+      }
       if (type == 'APP_OPEN') {
         final count = (data['count'] as num?)?.toInt() ?? 0;
         _handleAppOpen(count);
@@ -132,54 +138,142 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
     return '${duration.inMinutes}:$secs';
   }
 
+  // Neste código o retângulo é cortado
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
-    final clockColor = isDark ? Colors.white : Colors.black;
-    final chipColor = clockColor.withValues(alpha: 0.14);
-
-    return Material(
-      color: Colors.transparent,
-      child: SafeArea(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: AnimatedOpacity(
-            opacity: _opacity,
-            duration: _fadeDuration,
-            curve: Curves.easeInOut,
-            child: Container(
-              constraints: const BoxConstraints(minHeight: 26),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: chipColor,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: clockColor.withValues(alpha: 0.30), width: 1),
-              ),
-              child: Text(
-                _currentText,
-                maxLines: 1,
-                softWrap: false,
-                overflow: TextOverflow.visible,
-                style: TextStyle(
-                  color: clockColor,
-                  fontSize: 16,
-                  height: 1.1,
-                  fontWeight: FontWeight.w600,
-                  decoration: TextDecoration.none,
-                  letterSpacing: 0.2,
-                  shadows: [
-                    Shadow(
-                      color: (isDark ? Colors.black : Colors.white).withValues(alpha: 0.45),
-                      blurRadius: 3,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        body: SafeArea(
+          child: Container(
+            color: Colors.amberAccent,
+            height: double.infinity,
+            width: double.infinity,
+            //margin: const EdgeInsets.all(20),
+            // Alinhar texto no centro e embaixo para evitar sobreposição com a barra de status
+            alignment: Alignment.bottomCenter,
+            child: const Text('Flutter'),
           ),
         ),
       ),
     );
   }
+
+  // @override
+  // Widget build(BuildContext context) {
+  //   final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+  //   final clockColor = isDark ? Colors.white : Colors.black;
+  //   final chipColor = clockColor.withValues(alpha: 0.14);
+
+  //   return Material(
+  //     color: Colors.transparent, // Fundo 100% transparente para ver o WhatsApp
+  //     child: Container(
+  //       // DEBUG VISUAL: Essa borda vermelha agora deve aparecer contornando a tela TODA
+  //       decoration: BoxDecoration(
+  //         border: Border.all(color: Colors.redAccent, width: 2),
+  //       ),
+  //       child: SafeArea(
+  //         // Agora o SafeArea tem a tela inteira para calcular onde a câmera/relógio estão!
+  //         child: Align(
+  //           alignment: Alignment.topCenter,
+  //           child: AnimatedOpacity(
+  //             opacity: _opacity,
+  //             duration: _fadeDuration,
+  //             curve: Curves.easeInOut,
+  //             child: Container(
+  //               constraints: const BoxConstraints(minHeight: 26),
+  //               // Uma margem leve só para não ficar colado no texto do relógio
+  //               margin: const EdgeInsets.only(top: 8), 
+  //               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+  //               decoration: BoxDecoration(
+  //                 color: chipColor,
+  //                 borderRadius: BorderRadius.circular(14),
+  //                 border: Border.all(color: clockColor.withValues(alpha: 0.30), width: 1),
+  //               ),
+  //               child: Text(
+  //                 _currentText,
+  //                 maxLines: 1,
+  //                 softWrap: false,
+  //                 overflow: TextOverflow.visible,
+  //                 style: TextStyle(
+  //                   color: clockColor,
+  //                   fontSize: 14,
+  //                   height: 1.1,
+  //                   fontWeight: FontWeight.w600,
+  //                   decoration: TextDecoration.none,
+  //                   letterSpacing: 0.2,
+  //                   shadows: [
+  //                     Shadow(
+  //                       color: (isDark ? Colors.black : Colors.white).withValues(alpha: 0.45),
+  //                       blurRadius: 3,
+  //                       offset: const Offset(0, 1),
+  //                     ),
+  //                   ],
+  //                 ),
+  //               ),
+  //             ),
+  //           ),
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
+  // @override
+  // Widget build(BuildContext context) {
+  //   final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+  //   final clockColor = isDark ? Colors.white : Colors.black;
+  //   final chipColor = clockColor.withValues(alpha: 0.14);
+
+  //   return Material(
+  //     color: Colors.transparent,
+  //     child: Container(
+  //       // DEBUG VISUAL: Borda vermelha marcando o tamanho real da janela invisível
+  //       decoration: BoxDecoration(
+  //         border: Border.all(color: Colors.redAccent, width: 2),
+  //       ),
+  //       child: SafeArea(
+  //         // O SafeArea empurra o conteúdo para baixo da barra de status automaticamente
+  //         child: Align(
+  //           alignment: Alignment.topCenter,
+  //           child: AnimatedOpacity(
+  //             opacity: _opacity,
+  //             duration: _fadeDuration,
+  //             curve: Curves.easeInOut,
+  //             child: Container(
+  //               constraints: const BoxConstraints(minHeight: 26),
+  //               margin: const EdgeInsets.only(top: 4), // Uma pequena margem extra do relógio
+  //               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+  //               decoration: BoxDecoration(
+  //                 color: chipColor,
+  //                 borderRadius: BorderRadius.circular(14),
+  //                 border: Border.all(color: clockColor.withValues(alpha: 0.30), width: 1),
+  //               ),
+  //               child: Text(
+  //                 _currentText,
+  //                 maxLines: 1,
+  //                 softWrap: false,
+  //                 overflow: TextOverflow.visible,
+  //                 style: TextStyle(
+  //                   color: clockColor,
+  //                   fontSize: 14, // Diminuí levemente para ficar mais elegante
+  //                   height: 1.1,
+  //                   fontWeight: FontWeight.w600,
+  //                   decoration: TextDecoration.none,
+  //                   letterSpacing: 0.2,
+  //                   shadows: [
+  //                     Shadow(
+  //                       color: (isDark ? Colors.black : Colors.white).withValues(alpha: 0.45),
+  //                       blurRadius: 3,
+  //                       offset: const Offset(0, 1),
+  //                     ),
+  //                   ],
+  //                 ),
+  //               ),
+  //             ),
+  //           ),
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
 }

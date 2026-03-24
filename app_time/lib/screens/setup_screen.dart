@@ -67,6 +67,12 @@ class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
           await Permission.notification.request();
         }
 
+        final double statusBarHeight = MediaQuery.of(context).padding.top;
+        await FlutterOverlayWindow.shareData({
+          "type": "SET_OFFSET",
+          "offset": statusBarHeight,
+        });
+
         await initializeBackgroundService();
         
         final service = FlutterBackgroundService();
@@ -126,7 +132,24 @@ class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
     );
   }
 
-  @override
+  // Neste código o retângulo aperece onde deveria
+  // @override
+  // Widget build(BuildContext context) {
+  //   return MaterialApp(
+  //     debugShowCheckedModeBanner: false,
+  //     home: Scaffold(
+  //       body: SafeArea(
+  //         child: Container(
+  //           color: Colors.amberAccent,
+  //           height: 300,
+  //           width: 200,
+  //           margin: const EdgeInsets.all(20),
+  //           child: const Text('Flutter'),
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Configuração AppTime")),
@@ -193,10 +216,10 @@ class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
             ElevatedButton(
               onPressed: (isOverlayGranted && isUsageStatsGranted) ? _startMonitoring : null,
               style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(55),
+                minimumSize: const Size.fromHeight(255),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text("INICIAR MONITORAMENTO", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              child: const Text("INICIAR MONITORAMENTO (GRANDE)", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ],
         ),

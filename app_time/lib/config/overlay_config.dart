@@ -1,7 +1,8 @@
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
 class OverlayConfig {
-  static const OverlayAlignment alignment = OverlayAlignment.center;
-  static const int height = 600;
-  static const int width = 1000;
+  // Centralizado, ocupando a tela toda. Zero dor de cabeça com offsets nativos.
+  static const OverlayAlignment alignment = OverlayAlignment.topCenter;
+  static const int height = 350; 
+  static const int width = WindowSize.matchParent; 
 }
