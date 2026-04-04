@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
+import 'per_app_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -179,13 +180,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     StorageService.showOnLauncher = v;
                   },
                 ),
+                const Divider(),
+                ListTile(
+                  title: Text("Por aplicativo", style: theme.textTheme.titleMedium),
+                  subtitle: Text(
+                    "Desative o overlay para apps específicos",
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppTheme.spacingMD,
+                    vertical: AppTheme.spacingXS,
+                  ),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PerAppScreen()),
+                  ),
+                ),
               ],
             ),
           ),
 
           const SizedBox(height: AppTheme.spacingLG),
 
-          // Seção: Posicionamento (placeholder — F8 vai expandir)
+          // Seção: Posicionamento
           _SectionHeader(title: "Posicionamento", theme: theme),
           const SizedBox(height: AppTheme.spacingSM),
 

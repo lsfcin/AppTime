@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'monitoring_service.dart';
+import 'storage_service.dart';
 
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
   WidgetsFlutterBinding.ensureInitialized();
+  await StorageService.init();
   AppTracker.startSmartPolling();
 }
 
