@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'screens/setup_screen.dart';
+import 'screens/main_screen.dart';
 import 'overlay/app_time_overlay.dart';
 import 'theme/app_theme.dart';
+import 'services/storage_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await StorageService.init();
   runApp(const AppTimeApp());
 }
 
@@ -19,7 +21,7 @@ class AppTimeApp extends StatelessWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
-      home: const SetupScreen(),
+      home: const MainScreen(),
     );
   }
 }
