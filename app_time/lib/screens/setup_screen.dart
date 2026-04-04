@@ -150,6 +150,7 @@ class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
   //     ),
   //   );
   // }
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Configuração AppTime")),

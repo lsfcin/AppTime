@@ -113,7 +113,8 @@ class AppTracker {
       height: OverlayConfig.height,
       width: OverlayConfig.width,
       enableDrag: false,
-      flag: OverlayFlag.clickThrough, 
+      flag: OverlayFlag.clickThrough,
+      startPosition: const OverlayPosition(0, 0),
     );
   }
 

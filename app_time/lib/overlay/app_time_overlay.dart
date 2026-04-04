@@ -15,7 +15,7 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
 
   double _opacity = 0.0;
   String _currentText = '';
-  double _topOffset = 40.0;
+  //double _topOffset = 40.0;
   Timer? _sequenceTimer;
   StreamSubscription<dynamic>? _overlaySubscription;
 
@@ -33,11 +33,11 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
       final data = _normalizePayload(raw);
       final type = data['type'] as String?;
 
-      if (type == 'SET_OFFSET') {
-        setState(() {
-          _topOffset = (data['offset'] as num?)?.toDouble() ?? 40.0;
-        });
-      }
+      // if (type == 'SET_OFFSET') {
+      //   setState(() {
+      //     _topOffset = (data['offset'] as num?)?.toDouble() ?? 40.0;
+      //   });
+      // }
       if (type == 'APP_OPEN') {
         final count = (data['count'] as num?)?.toInt() ?? 0;
         _handleAppOpen(count);
@@ -138,21 +138,50 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
     return '${duration.inMinutes}:$secs';
   }
 
-  // Neste código o retângulo é cortado
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        body: SafeArea(
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+    final clockColor = isDark ? Colors.white : Colors.black;
+    final chipColor = clockColor.withValues(alpha: 0.14);
+
+    return Material(
+      color: Colors.transparent,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: AnimatedOpacity(
+          opacity: _opacity,
+          duration: _fadeDuration,
+          curve: Curves.easeInOut,
           child: Container(
-            color: Colors.amberAccent,
-            height: double.infinity,
-            width: double.infinity,
-            //margin: const EdgeInsets.all(20),
-            // Alinhar texto no centro e embaixo para evitar sobreposição com a barra de status
-            alignment: Alignment.bottomCenter,
-            child: const Text('Flutter'),
+            constraints: const BoxConstraints(minHeight: 26),
+            margin: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: chipColor,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: clockColor.withValues(alpha: 0.30), width: 1),
+            ),
+            child: Text(
+              _currentText,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.visible,
+              style: TextStyle(
+                color: clockColor,
+                fontSize: 14,
+                height: 1.1,
+                fontWeight: FontWeight.w600,
+                decoration: TextDecoration.none,
+                letterSpacing: 0.2,
+                shadows: [
+                  Shadow(
+                    color: (isDark ? Colors.black : Colors.white).withValues(alpha: 0.45),
+                    blurRadius: 3,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
