@@ -43,4 +43,21 @@ class StorageService {
 
   static bool get showOnAppOpen => _p.getBool('show_on_app_open') ?? true;
   static set showOnAppOpen(bool v) => _p.setBool('show_on_app_open', v);
+
+  // Por app: pacotes onde o overlay está desativado
+  static Set<String> get disabledApps =>
+      (_p.getStringList('disabled_apps') ?? []).toSet();
+
+  static bool isAppEnabled(String packageName) =>
+      !disabledApps.contains(packageName);
+
+  static void setAppEnabled(String packageName, bool enabled) {
+    final set = disabledApps;
+    if (enabled) {
+      set.remove(packageName);
+    } else {
+      set.add(packageName);
+    }
+    _p.setStringList('disabled_apps', set.toList());
+  }
 }

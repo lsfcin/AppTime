@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:usage_stats/usage_stats.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import '../config/overlay_config.dart';
+import 'storage_service.dart';
 
 class AppTracker {
   static String lastApp = "";
@@ -66,18 +67,22 @@ class AppTracker {
         launcherSeconds = 0;
 
         if (isLauncher) {
-          await _ensureOverlayVisible();
-          final unlockCount = await getUnlockCount24h();
-          lastDeviceUsage24h = await getDeviceUsage24h();
+          if (StorageService.showOnLauncher) {
+            await _ensureOverlayVisible();
+            final unlockCount = await getUnlockCount24h();
+            lastDeviceUsage24h = await getDeviceUsage24h();
 
-          // LAUNCHER_WAKE quando acabou de desbloquear (contexto de uso real)
-          // LAUNCHER_HOME quando veio de um app (pressionou home) — mesmos dados
-          final eventType = unlockedNow ? "LAUNCHER_WAKE" : "LAUNCHER_HOME";
-          await _shareDataSafely({
-            "type": eventType,
-            "unlock_count": unlockCount,
-            "device_usage_24h": lastDeviceUsage24h,
-          });
+            // LAUNCHER_WAKE quando acabou de desbloquear (contexto de uso real)
+            // LAUNCHER_HOME quando veio de um app (pressionou home) — mesmos dados
+            final eventType = unlockedNow ? "LAUNCHER_WAKE" : "LAUNCHER_HOME";
+            await _shareDataSafely({
+              "type": eventType,
+              "unlock_count": unlockCount,
+              "device_usage_24h": lastDeviceUsage24h,
+            });
+          }
+        } else if (!StorageService.showOnAppOpen || !StorageService.isAppEnabled(currentApp)) {
+          // Overlay desativado globalmente ou para este app específico
         } else {
           await _ensureOverlayVisible();
 
@@ -93,11 +98,13 @@ class AppTracker {
           lastDailyStats = await getAppUsage24h(currentApp);
         }
 
-        await _shareDataSafely({
-          "type": "APP_TICK",
-          "seconds": sessionSeconds,
-          "daily_stats": lastDailyStats,
-        });
+        if (StorageService.showOnAppOpen && StorageService.isAppEnabled(currentApp)) {
+          await _shareDataSafely({
+            "type": "APP_TICK",
+            "seconds": sessionSeconds,
+            "daily_stats": lastDailyStats,
+          });
+        }
       } else {
         launcherSeconds++;
 
