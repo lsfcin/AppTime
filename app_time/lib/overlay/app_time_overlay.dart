@@ -29,6 +29,10 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
   double _hOffsetPct = StorageService.overlayLeftOffsetPct;
   double _topOffsetDp = StorageService.overlayTopOffsetDp;
 
+  // Drag-to-reposition state
+  bool _dragging = false;
+  Offset _dragPosition = Offset.zero;
+
   Timer? _fadeTimer;
   Timer? _rotationTimer;
   StreamSubscription<dynamic>? _overlaySubscription;
@@ -71,6 +75,7 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
   }
 
   void _handleAppOpen(int count) {
+    if (_dragging) return;
     _openCount = count;
     _sessionSeconds = 0;
     _isLauncherMode = false;
@@ -81,6 +86,7 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
   }
 
   void _handleAppTick(int seconds, String daily) {
+    if (_dragging) return;
     setState(() {
       _sessionSeconds = seconds;
       _usage24h = daily;
@@ -89,6 +95,7 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
   }
 
   void _handleLauncherWake(int unlockCount, String deviceUsage24h) {
+    if (_dragging) return;
     _openCount = unlockCount;
     _usage24h = deviceUsage24h;
     _isLauncherMode = true;
@@ -99,6 +106,7 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
   }
 
   void _handleLauncherTick(String deviceUsage24h) {
+    if (_dragging) return;
     setState(() => _usage24h = deviceUsage24h);
   }
 
@@ -139,7 +147,6 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
     _rotationTimer?.cancel();
     _rotationTimer = Timer.periodic(_rotationInterval, (_) {
       if (!mounted) return;
-      // Só alterna para tempo se houver dados de sessão
       if (!_showingTime && _sessionSeconds == 0 && !_isLauncherMode) return;
       setState(() => _showingTime = !_showingTime);
     });
@@ -152,6 +159,85 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
       setState(() => _opacity = 0.0);
       _rotationTimer?.cancel();
     });
+  }
+
+  // --- Drag to reposition ---
+
+  void _enterDragMode(double screenWidth) {
+    // Cancel any pending fade so chip stays visible while dragging
+    _fadeTimer?.cancel();
+    _rotationTimer?.cancel();
+
+    // Compute chip's approximate top-left from current anchor settings
+    final double chipWidth = _fontSize * 3.5; // rough estimate
+    Offset initial;
+    switch (_anchor) {
+      case 'left':
+        initial = Offset(screenWidth - screenWidth * _hOffsetPct - chipWidth, _topOffsetDp);
+      case 'below':
+        initial = Offset(screenWidth / 2 - chipWidth / 2, _topOffsetDp + 28);
+      default: // 'right'
+        initial = Offset(screenWidth * _hOffsetPct, _topOffsetDp);
+    }
+
+    setState(() {
+      _dragging = true;
+      _opacity = 1.0;
+      _dragPosition = initial;
+    });
+  }
+
+  void _onDragUpdate(DragUpdateDetails details) {
+    setState(() => _dragPosition += details.delta);
+  }
+
+  void _onDragEnd(double screenWidth) {
+    final double chipWidth = _fontSize * 3.5;
+    final double centerX = _dragPosition.dx + chipWidth / 2;
+    final double topY = _dragPosition.dy.clamp(0.0, 80.0);
+
+    // Auto-detect anchor from final horizontal position
+    String newAnchor;
+    double newHOffsetPct;
+
+    if (topY > 50) {
+      // Dragged below status bar area → 'below' anchor
+      newAnchor = 'below';
+      newHOffsetPct = _hOffsetPct;
+    } else if (centerX <= screenWidth / 2) {
+      // Chip center in left half → chip is right of camera → anchor 'right'
+      newAnchor = 'right';
+      newHOffsetPct = (_dragPosition.dx / screenWidth).clamp(0.3, 0.8);
+    } else {
+      // Chip center in right half → chip is left of camera → anchor 'left'
+      newAnchor = 'left';
+      newHOffsetPct = ((screenWidth - _dragPosition.dx - chipWidth) / screenWidth).clamp(0.3, 0.8);
+    }
+
+    final double newTopOffsetDp = newAnchor == 'below'
+        ? (_dragPosition.dy - 28).clamp(0.0, 40.0)
+        : topY.clamp(0.0, 40.0);
+
+    setState(() {
+      _dragging = false;
+      _anchor = newAnchor;
+      _hOffsetPct = newHOffsetPct;
+      _topOffsetDp = newTopOffsetDp;
+    });
+
+    // Persist and sync to main app
+    StorageService.overlayAnchor = newAnchor;
+    StorageService.overlayLeftOffsetPct = newHOffsetPct;
+    StorageService.overlayTopOffsetDp = newTopOffsetDp;
+    FlutterOverlayWindow.shareData({
+      'type': 'SETTINGS_UPDATE',
+      'anchor': newAnchor,
+      'h_offset_pct': newHOffsetPct,
+      'top_offset_dp': newTopOffsetDp,
+    });
+
+    // Resume normal fade after a brief pause
+    _scheduleFade(const Duration(seconds: 2));
   }
 
   String get _displayText {
@@ -194,54 +280,104 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final w = constraints.maxWidth;
-          final chip = AnimatedOpacity(
-                opacity: _opacity,
-                duration: _fadeDuration,
-                curve: Curves.easeInOut,
-                child: Container(
-                  constraints: const BoxConstraints(minHeight: 24),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: _showBackground
-                        ? clockColor.withValues(alpha: 0.12)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
-                    border: _showBorder
-                        ? Border.all(
-                            color: clockColor.withValues(alpha: 0.28),
-                            width: 1,
-                          )
-                        : null,
+
+          final chipWidget = Container(
+            constraints: const BoxConstraints(minHeight: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            decoration: BoxDecoration(
+              color: _showBackground
+                  ? clockColor.withValues(alpha: _dragging ? 0.22 : 0.12)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              border: (_showBorder || _dragging)
+                  ? Border.all(
+                      color: _dragging
+                          ? Colors.white.withValues(alpha: 0.8)
+                          : clockColor.withValues(alpha: 0.28),
+                      width: _dragging ? 1.5 : 1,
+                    )
+                  : null,
+            ),
+            child: Text(
+              _displayText,
+              maxLines: 1,
+              softWrap: false,
+              style: TextStyle(
+                color: clockColor,
+                fontSize: _fontSize,
+                height: 1.1,
+                fontWeight: FontWeight.w600,
+                decoration: TextDecoration.none,
+                letterSpacing: 0.3,
+                shadows: [
+                  Shadow(
+                    color: (isDark ? Colors.black : Colors.white)
+                        .withValues(alpha: 0.4),
+                    blurRadius: 3,
+                    offset: const Offset(0, 1),
                   ),
-                  child: Text(
-                    _displayText,
-                    maxLines: 1,
-                    softWrap: false,
-                    style: TextStyle(
-                      color: clockColor,
-                      fontSize: _fontSize,
-                      height: 1.1,
-                      fontWeight: FontWeight.w600,
-                      decoration: TextDecoration.none,
-                      letterSpacing: 0.3,
-                      shadows: [
-                        Shadow(
-                          color: (isDark ? Colors.black : Colors.white)
-                              .withValues(alpha: 0.4),
-                          blurRadius: 3,
-                          offset: const Offset(0, 1),
+                ],
+              ),
+            ),
+          );
+
+          // --- Drag mode: full-screen Stack with draggable chip ---
+          if (_dragging) {
+            return Stack(
+              children: [
+                // Dim scrim so user knows they're in drag mode
+                Container(color: Colors.black.withValues(alpha: 0.25)),
+                // Hint text
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 80),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.55),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'Solte para salvar a posição',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          decoration: TextDecoration.none,
+                          fontWeight: FontWeight.w500,
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
+                // Draggable chip
+                Positioned(
+                  left: _dragPosition.dx.clamp(0, w - 80),
+                  top: _dragPosition.dy.clamp(0, constraints.maxHeight - 60),
+                  child: GestureDetector(
+                    onPanUpdate: _onDragUpdate,
+                    onPanEnd: (_) => _onDragEnd(w),
+                    child: chipWidget,
+                  ),
+                ),
+              ],
+            );
+          }
+
+          // --- Normal mode: animated chip at anchor position ---
+          final chip = AnimatedOpacity(
+            opacity: _opacity,
+            duration: _fadeDuration,
+            curve: Curves.easeInOut,
+            child: GestureDetector(
+              onLongPress: () => _enterDragMode(w),
+              child: chipWidget,
+            ),
           );
 
-          // Posicionamento baseado na âncora escolhida
           Widget positioned;
           switch (_anchor) {
             case 'left':
-              // Chip ancorado à direita, terminando antes da câmera
               positioned = Padding(
                 padding: EdgeInsets.only(top: _topOffsetDp),
                 child: Align(
@@ -253,13 +389,11 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
                 ),
               );
             case 'below':
-              // Chip centralizado abaixo da câmera (saindo da status bar)
               positioned = Padding(
                 padding: EdgeInsets.only(top: _topOffsetDp + 28),
                 child: Align(alignment: Alignment.topCenter, child: chip),
               );
             default: // 'right'
-              // Chip ancorado à esquerda, começando após a câmera
               positioned = Padding(
                 padding: EdgeInsets.only(top: _topOffsetDp, left: w * _hOffsetPct),
                 child: Align(alignment: Alignment.topLeft, child: chip),

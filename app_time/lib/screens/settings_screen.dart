@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import '../services/storage_service.dart';
@@ -21,10 +23,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late double _hOffsetPct;
   late double _topOffsetDp;
 
+  StreamSubscription<dynamic>? _overlaySubscription;
+
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    // Sync UI when overlay drag updates position
+    _overlaySubscription = FlutterOverlayWindow.overlayListener.listen(_onOverlayData);
+  }
+
+  @override
+  void dispose() {
+    _overlaySubscription?.cancel();
+    super.dispose();
+  }
+
+  void _onOverlayData(dynamic raw) {
+    Map<String, dynamic> data;
+    if (raw is Map<String, dynamic>) {
+      data = raw;
+    } else if (raw is Map) {
+      data = raw.map((k, v) => MapEntry(k.toString(), v));
+    } else if (raw is String && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        data = decoded is Map ? decoded.map((k, v) => MapEntry(k.toString(), v)) : {};
+      } catch (_) {
+        data = {};
+      }
+    } else {
+      return;
+    }
+
+    if (data['type'] != 'SETTINGS_UPDATE') return;
+
+    setState(() {
+      if (data.containsKey('anchor')) _anchor = data['anchor'] as String;
+      if (data.containsKey('h_offset_pct')) _hOffsetPct = (data['h_offset_pct'] as num).toDouble();
+      if (data.containsKey('top_offset_dp')) _topOffsetDp = (data['top_offset_dp'] as num).toDouble();
+    });
   }
 
   void _loadSettings() {
