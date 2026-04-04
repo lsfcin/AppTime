@@ -27,6 +27,13 @@ class StorageService {
   static double get overlayLeftOffsetPct => _p.getDouble('overlay_left_offset_pct') ?? 0.53;
   static set overlayLeftOffsetPct(double v) => _p.setDouble('overlay_left_offset_pct', v);
 
+  // 'right' = à direita da câmera | 'left' = à esquerda | 'below' = abaixo
+  static String get overlayAnchor => _p.getString('overlay_anchor') ?? 'right';
+  static set overlayAnchor(String v) => _p.setString('overlay_anchor', v);
+
+  static double get overlayTopOffsetDp => _p.getDouble('overlay_top_offset_dp') ?? 8.0;
+  static set overlayTopOffsetDp(double v) => _p.setDouble('overlay_top_offset_dp', v);
+
   static double get overlayFontSize => _p.getDouble('overlay_font_size') ?? 13.0;
   static set overlayFontSize(double v) => _p.setDouble('overlay_font_size', v);
 

@@ -17,6 +17,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _showOnAppOpen;
   late int _rotationInterval;
   late double _fontSize;
+  late String _anchor;
+  late double _hOffsetPct;
+  late double _topOffsetDp;
 
   @override
   void initState() {
@@ -31,6 +34,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _showOnAppOpen = StorageService.showOnAppOpen;
     _rotationInterval = StorageService.rotationIntervalSeconds;
     _fontSize = StorageService.overlayFontSize;
+    _anchor = StorageService.overlayAnchor;
+    _hOffsetPct = StorageService.overlayLeftOffsetPct;
+    _topOffsetDp = StorageService.overlayTopOffsetDp;
   }
 
   @override
@@ -146,12 +152,67 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: AppTheme.spacingSM),
 
           Card(
-            child: Padding(
-              padding: const EdgeInsets.all(AppTheme.spacingMD),
-              child: Text(
-                "Opções de posicionamento e âncora estarão disponíveis em breve.",
-                style: theme.textTheme.bodyMedium,
-              ),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(AppTheme.spacingMD),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Âncora", style: theme.textTheme.titleMedium),
+                      Text(
+                        "Onde o chip aparece em relação à câmera frontal",
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: AppTheme.spacingSM),
+                      SegmentedButton<String>(
+                        segments: const [
+                          ButtonSegment(value: 'left', label: Text("Esquerda"), icon: Icon(Icons.arrow_back_rounded, size: 16)),
+                          ButtonSegment(value: 'right', label: Text("Direita"), icon: Icon(Icons.arrow_forward_rounded, size: 16)),
+                          ButtonSegment(value: 'below', label: Text("Abaixo"), icon: Icon(Icons.arrow_downward_rounded, size: 16)),
+                        ],
+                        selected: {_anchor},
+                        onSelectionChanged: (s) {
+                          final v = s.first;
+                          setState(() => _anchor = v);
+                          StorageService.overlayAnchor = v;
+                          FlutterOverlayWindow.shareData({'type': 'SETTINGS_UPDATE', 'anchor': v});
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(),
+                _SliderTile(
+                  title: "Posição horizontal",
+                  subtitle: "Distância da câmera (esq/dir) ou da borda (abaixo)",
+                  value: _hOffsetPct,
+                  min: 0.3,
+                  max: 0.8,
+                  divisions: 25,
+                  label: "${(_hOffsetPct * 100).round()}%",
+                  onChanged: (v) {
+                    setState(() => _hOffsetPct = v);
+                    StorageService.overlayLeftOffsetPct = v;
+                    FlutterOverlayWindow.shareData({'type': 'SETTINGS_UPDATE', 'h_offset_pct': v});
+                  },
+                ),
+                const Divider(),
+                _SliderTile(
+                  title: "Posição vertical",
+                  subtitle: "Distância do topo da tela em dp",
+                  value: _topOffsetDp,
+                  min: 0,
+                  max: 40,
+                  divisions: 20,
+                  label: "${_topOffsetDp.round()}dp",
+                  onChanged: (v) {
+                    setState(() => _topOffsetDp = v);
+                    StorageService.overlayTopOffsetDp = v;
+                    FlutterOverlayWindow.shareData({'type': 'SETTINGS_UPDATE', 'top_offset_dp': v});
+                  },
+                ),
+              ],
             ),
           ),
         ],
