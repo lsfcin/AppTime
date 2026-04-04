@@ -25,6 +25,9 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
   bool _showBorder = StorageService.showBorder;
   bool _showBackground = StorageService.showBackground;
   double _fontSize = StorageService.overlayFontSize;
+  String _anchor = StorageService.overlayAnchor;
+  double _hOffsetPct = StorageService.overlayLeftOffsetPct;
+  double _topOffsetDp = StorageService.overlayTopOffsetDp;
 
   Timer? _fadeTimer;
   Timer? _rotationTimer;
@@ -115,6 +118,15 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
       if (data.containsKey('font_size')) {
         _fontSize = (data['font_size'] as num).toDouble();
       }
+      if (data.containsKey('anchor')) {
+        _anchor = data['anchor'] as String;
+      }
+      if (data.containsKey('h_offset_pct')) {
+        _hOffsetPct = (data['h_offset_pct'] as num).toDouble();
+      }
+      if (data.containsKey('top_offset_dp')) {
+        _topOffsetDp = (data['top_offset_dp'] as num).toDouble();
+      }
     });
   }
 
@@ -181,14 +193,8 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
       color: Colors.transparent,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          // Posiciona o chip logo após a câmera frontal (53% da largura)
-          // expande para a direita, nunca sobrepõe a câmera
-          final leftOffset = constraints.maxWidth * 0.53;
-          return Padding(
-            padding: EdgeInsets.only(top: 8, left: leftOffset),
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: AnimatedOpacity(
+          final w = constraints.maxWidth;
+          final chip = AnimatedOpacity(
                 opacity: _opacity,
                 duration: _fadeDuration,
                 curve: Curves.easeInOut,
@@ -229,9 +235,38 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
                     ),
                   ),
                 ),
-              ),
-            ),
           );
+
+          // Posicionamento baseado na âncora escolhida
+          Widget positioned;
+          switch (_anchor) {
+            case 'left':
+              // Chip ancorado à direita, terminando antes da câmera
+              positioned = Padding(
+                padding: EdgeInsets.only(top: _topOffsetDp),
+                child: Align(
+                  alignment: Alignment.topRight,
+                  child: Padding(
+                    padding: EdgeInsets.only(right: w * _hOffsetPct),
+                    child: chip,
+                  ),
+                ),
+              );
+            case 'below':
+              // Chip centralizado abaixo da câmera (saindo da status bar)
+              positioned = Padding(
+                padding: EdgeInsets.only(top: _topOffsetDp + 28),
+                child: Align(alignment: Alignment.topCenter, child: chip),
+              );
+            default: // 'right'
+              // Chip ancorado à esquerda, começando após a câmera
+              positioned = Padding(
+                padding: EdgeInsets.only(top: _topOffsetDp, left: w * _hOffsetPct),
+                child: Align(alignment: Alignment.topLeft, child: chip),
+              );
+          }
+
+          return positioned;
         },
       ),
     );
