@@ -56,6 +56,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onChanged: (v) {
                     setState(() => _showBorder = v);
                     StorageService.showBorder = v;
+                    FlutterOverlayWindow.shareData({'type': 'SETTINGS_UPDATE', 'show_border': v});
                   },
                 ),
                 const Divider(),
@@ -66,6 +67,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onChanged: (v) {
                     setState(() => _showBackground = v);
                     StorageService.showBackground = v;
+                    FlutterOverlayWindow.shareData({'type': 'SETTINGS_UPDATE', 'show_background': v});
                   },
                 ),
                 const Divider(),
@@ -98,6 +100,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onChanged: (v) {
                     setState(() => _fontSize = v);
                     StorageService.overlayFontSize = v;
+                    FlutterOverlayWindow.shareData({'type': 'SETTINGS_UPDATE', 'font_size': v});
                   },
                 ),
               ],

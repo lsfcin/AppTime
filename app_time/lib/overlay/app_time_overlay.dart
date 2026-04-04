@@ -22,6 +22,10 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
   bool _isLauncherMode = false;
   bool _showingTime = false;
 
+  bool _showBorder = StorageService.showBorder;
+  bool _showBackground = StorageService.showBackground;
+  double _fontSize = StorageService.overlayFontSize;
+
   Timer? _fadeTimer;
   Timer? _rotationTimer;
   StreamSubscription<dynamic>? _overlaySubscription;
@@ -96,13 +100,22 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
   }
 
   void _handleSettingsUpdate(Map<String, dynamic> data) {
-    final intervalSeconds = (data['rotation_interval'] as num?)?.toInt();
-    if (intervalSeconds != null) {
-      _rotationInterval = Duration(seconds: intervalSeconds);
-      if (_rotationTimer?.isActive == true) {
-        _startRotation(); // reinicia com novo intervalo
+    setState(() {
+      final intervalSeconds = (data['rotation_interval'] as num?)?.toInt();
+      if (intervalSeconds != null) {
+        _rotationInterval = Duration(seconds: intervalSeconds);
+        if (_rotationTimer?.isActive == true) _startRotation();
       }
-    }
+      if (data.containsKey('show_border')) {
+        _showBorder = data['show_border'] as bool;
+      }
+      if (data.containsKey('show_background')) {
+        _showBackground = data['show_background'] as bool;
+      }
+      if (data.containsKey('font_size')) {
+        _fontSize = (data['font_size'] as num).toDouble();
+      }
+    });
   }
 
   void _show() {
@@ -183,12 +196,16 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
                   constraints: const BoxConstraints(minHeight: 24),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                   decoration: BoxDecoration(
-                    color: clockColor.withValues(alpha: 0.12),
+                    color: _showBackground
+                        ? clockColor.withValues(alpha: 0.12)
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: clockColor.withValues(alpha: 0.28),
-                      width: 1,
-                    ),
+                    border: _showBorder
+                        ? Border.all(
+                            color: clockColor.withValues(alpha: 0.28),
+                            width: 1,
+                          )
+                        : null,
                   ),
                   child: Text(
                     _displayText,
@@ -196,7 +213,7 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
                     softWrap: false,
                     style: TextStyle(
                       color: clockColor,
-                      fontSize: 13,
+                      fontSize: _fontSize,
                       height: 1.1,
                       fontWeight: FontWeight.w600,
                       decoration: TextDecoration.none,
