@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
 
@@ -79,6 +80,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onChanged: (v) {
                     setState(() => _rotationInterval = v.round());
                     StorageService.rotationIntervalSeconds = v.round();
+                    FlutterOverlayWindow.shareData({
+                      'type': 'SETTINGS_UPDATE',
+                      'rotation_interval': v.round(),
+                    });
                   },
                 ),
                 const Divider(),

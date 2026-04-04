@@ -28,8 +28,9 @@ class AppTimeApp extends StatelessWidget {
 
 // OBRIGATÓRIO: O motor nativo procura essa função globalmente aqui no main
 @pragma("vm:entry-point")
-void overlayMain() {
+void overlayMain() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await StorageService.init();
   runApp(const MaterialApp(
     debugShowCheckedModeBanner: false,
     home: AppTimeOverlay(),

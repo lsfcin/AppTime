@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
+import '../services/storage_service.dart';
 
 class AppTimeOverlay extends StatefulWidget {
   const AppTimeOverlay({super.key});
@@ -12,7 +13,7 @@ class AppTimeOverlay extends StatefulWidget {
 
 class _AppTimeOverlayState extends State<AppTimeOverlay> {
   static const Duration _fadeDuration = Duration(seconds: 2);
-  static const Duration _rotationInterval = Duration(seconds: 4);
+  Duration _rotationInterval = Duration(seconds: StorageService.rotationIntervalSeconds);
 
   double _opacity = 0.0;
   int _openCount = 0;
@@ -57,6 +58,8 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
       );
     } else if (type == 'LAUNCHER_TICK') {
       _handleLauncherTick(data['device_usage_24h'] as String? ?? '0 min');
+    } else if (type == 'SETTINGS_UPDATE') {
+      _handleSettingsUpdate(data);
     }
   }
 
@@ -90,6 +93,16 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
 
   void _handleLauncherTick(String deviceUsage24h) {
     setState(() => _usage24h = deviceUsage24h);
+  }
+
+  void _handleSettingsUpdate(Map<String, dynamic> data) {
+    final intervalSeconds = (data['rotation_interval'] as num?)?.toInt();
+    if (intervalSeconds != null) {
+      _rotationInterval = Duration(seconds: intervalSeconds);
+      if (_rotationTimer?.isActive == true) {
+        _startRotation(); // reinicia com novo intervalo
+      }
+    }
   }
 
   void _show() {
