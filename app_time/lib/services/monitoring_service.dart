@@ -11,6 +11,15 @@ class AppTracker {
   static String lastDailyStats = "0 min";
   static String lastDeviceUsage24h = "0 min";
   static Timer? _pollTimer;
+  static Timer? _healthTimer;
+
+  static void stopPolling() {
+    _pollTimer?.cancel();
+    _healthTimer?.cancel();
+    _pollTimer = null;
+    _healthTimer = null;
+  }
+
   static final List<String> launchers = [
     "com.google.android.apps.nexuslauncher",
     "com.sec.android.app.launcher",
@@ -57,9 +66,8 @@ class AppTracker {
         launcherSeconds = 0;
 
         if (isLauncher) {
-          await _ensureOverlayVisible();
-
           if (unlockedNow) {
+            await _ensureOverlayVisible();
             final unlockCount = await getUnlockCount24h();
             lastDeviceUsage24h = await getDeviceUsage24h();
 
@@ -105,9 +113,22 @@ class AppTracker {
 
       _lastAppWasLauncher = isLauncher;
     });
+
+    // Health check: reativa o overlay a cada 60s se o serviço estiver rodando
+    // mas o overlay tiver morrido (ex: baixa memória, reinício do sistema)
+    _healthTimer = Timer.periodic(const Duration(seconds: 60), (_) async {
+      if (lastApp.isEmpty) return;
+      final isActive = await FlutterOverlayWindow.isActive();
+      if (!isActive && !launchers.contains(lastApp)) {
+        await _ensureOverlayVisible();
+      }
+    });
   }
 
   static Future<void> _ensureOverlayVisible() async {
+    final isActive = await FlutterOverlayWindow.isActive();
+    if (isActive) return;
+
     await FlutterOverlayWindow.showOverlay(
       alignment: OverlayConfig.alignment,
       height: OverlayConfig.height,
