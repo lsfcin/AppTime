@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'monitoring_service.dart';
 
-// PONTO DE ENTRADA DO SERVIÇO DE BACKGROUND
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,7 +13,7 @@ Future<void> initializeBackgroundService() async {
   await service.configure(
     androidConfiguration: AndroidConfiguration(
       onStart: onStart,
-      autoStart: false,
+      autoStart: true,
       isForegroundMode: true,
     ),
     iosConfiguration: IosConfiguration(

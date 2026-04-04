@@ -13,7 +13,6 @@ class SetupScreen extends StatefulWidget {
 }
 
 class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
-  bool _monitoringStarted = false;
   bool isOverlayGranted = false;
   bool isUsageStatsGranted = false;
   bool isBatteryOptIgnored = false;
@@ -61,41 +60,30 @@ class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _startMonitoring() async {
-    if (isOverlayGranted && isUsageStatsGranted) {
-      try {
-        if (await Permission.notification.isDenied) {
-          await Permission.notification.request();
-        }
+    if (!isOverlayGranted || !isUsageStatsGranted) return;
+    try {
+      if (await Permission.notification.isDenied) {
+        await Permission.notification.request();
+      }
 
-        final double statusBarHeight = MediaQuery.of(context).padding.top;
-        await FlutterOverlayWindow.shareData({
-          "type": "SET_OFFSET",
-          "offset": statusBarHeight,
-        });
+      await initializeBackgroundService();
 
-        await initializeBackgroundService();
-        
-        final service = FlutterBackgroundService();
-        bool isRunning = await service.isRunning();
-        
-        if (!isRunning) {
-          await service.startService(); 
-        }
-        
-        setState(() => _monitoringStarted = true);
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Monitoramento persistente ativo!")),
-          );
-        }
-      } catch (e) {
-        debugPrint("Erro crítico ao iniciar serviço: $e");
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Erro ao iniciar serviço: $e")),
-          );
-        }
+      final service = FlutterBackgroundService();
+      if (!await service.isRunning()) {
+        await service.startService();
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Monitoramento persistente ativo!")),
+        );
+      }
+    } catch (e) {
+      debugPrint("Erro crítico ao iniciar serviço: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Erro ao iniciar serviço: $e")),
+        );
       }
     }
   }
@@ -199,14 +187,13 @@ class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
                 title: "Funcionamento em Segundo Plano",
                 instruction: "Para o app não parar de funcionar sozinho, permita que ele ignore a otimização de bateria do sistema no próximo aviso.",
                 onConfirm: () async {
+                  final messenger = ScaffoldMessenger.of(context);
                   try {
                     await Permission.ignoreBatteryOptimizations.request();
                   } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Por favor, configure manualmente nas configurações de bateria do celular.")),
-                      );
-                    }
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text("Por favor, configure manualmente nas configurações de bateria do celular.")),
+                    );
                   }
                   _checkPermissions();
                 },
@@ -233,10 +220,11 @@ class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
       title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
       trailing: Icon(granted ? Icons.check_circle : Icons.error, color: granted ? Colors.green : Colors.red),
       onTap: granted ? null : onPress,
+
       tileColor: Colors.grey[100],
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: granted ? Colors.green.withOpacity(0.5) : Colors.transparent),
+        side: BorderSide(color: granted ? Colors.green.withValues(alpha: 0.5) : Colors.transparent),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
     );
