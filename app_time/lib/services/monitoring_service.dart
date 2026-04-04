@@ -66,19 +66,18 @@ class AppTracker {
         launcherSeconds = 0;
 
         if (isLauncher) {
-          if (unlockedNow) {
-            await _ensureOverlayVisible();
-            final unlockCount = await getUnlockCount24h();
-            lastDeviceUsage24h = await getDeviceUsage24h();
+          await _ensureOverlayVisible();
+          final unlockCount = await getUnlockCount24h();
+          lastDeviceUsage24h = await getDeviceUsage24h();
 
-            await _shareDataSafely({
-              "type": "LAUNCHER_WAKE",
-              "unlock_count": unlockCount,
-              "device_usage_24h": lastDeviceUsage24h,
-            });
-          } else {
-            await FlutterOverlayWindow.closeOverlay();
-          }
+          // LAUNCHER_WAKE quando acabou de desbloquear (contexto de uso real)
+          // LAUNCHER_HOME quando veio de um app (pressionou home) — mesmos dados
+          final eventType = unlockedNow ? "LAUNCHER_WAKE" : "LAUNCHER_HOME";
+          await _shareDataSafely({
+            "type": eventType,
+            "unlock_count": unlockCount,
+            "device_usage_24h": lastDeviceUsage24h,
+          });
         } else {
           await _ensureOverlayVisible();
 
@@ -102,7 +101,7 @@ class AppTracker {
       } else {
         launcherSeconds++;
 
-        if (_lastAppWasLauncher && launcherSeconds % 20 == 0) {
+        if (_lastAppWasLauncher && launcherSeconds % 10 == 0) {
           lastDeviceUsage24h = await getDeviceUsage24h();
           await _shareDataSafely({
             "type": "LAUNCHER_TICK",

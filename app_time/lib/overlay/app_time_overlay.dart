@@ -50,7 +50,7 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
         (data['seconds'] as num?)?.toInt() ?? 0,
         data['daily_stats'] as String? ?? '0 min',
       );
-    } else if (type == 'LAUNCHER_WAKE') {
+    } else if (type == 'LAUNCHER_WAKE' || type == 'LAUNCHER_HOME') {
       _handleLauncherWake(
         (data['unlock_count'] as num?)?.toInt() ?? 0,
         data['device_usage_24h'] as String? ?? '0 min',
