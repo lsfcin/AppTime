@@ -60,4 +60,8 @@ class StorageService {
     }
     _p.setStringList('disabled_apps', set.toList());
   }
+
+  // Meta de uso diário (0 = desativado)
+  static int get dailyGoalMinutes => _p.getInt('daily_goal_minutes') ?? 0;
+  static set dailyGoalMinutes(int v) => _p.setInt('daily_goal_minutes', v);
 }
