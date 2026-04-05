@@ -6,23 +6,24 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import '../services/background_service.dart';
 import '../theme/app_theme.dart';
 
-class SetupScreen extends StatefulWidget {
-  const SetupScreen({super.key});
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
 
   @override
-  State<SetupScreen> createState() => _SetupScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool isOverlayGranted = false;
   bool isUsageStatsGranted = false;
   bool isBatteryOptIgnored = false;
+  bool isMonitoringActive = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _checkPermissions();
+    _refresh();
   }
 
   @override
@@ -33,10 +34,10 @@ class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _checkPermissions();
+    if (state == AppLifecycleState.resumed) _refresh();
   }
 
-  Future<void> _checkPermissions() async {
+  Future<void> _refresh() async {
     try {
       final overlay = await FlutterOverlayWindow.isPermissionGranted();
       final usage = await UsageStats.checkUsagePermission() ?? false;
@@ -44,174 +45,140 @@ class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
       try {
         battery = await Permission.ignoreBatteryOptimizations.isGranted;
       } catch (_) {}
+      final monitoring = await FlutterBackgroundService().isRunning();
 
       if (mounted) {
         setState(() {
           isOverlayGranted = overlay;
           isUsageStatsGranted = usage;
           isBatteryOptIgnored = battery;
+          isMonitoringActive = monitoring;
         });
       }
     } catch (e) {
-      debugPrint("Erro em _checkPermissions: $e");
+      debugPrint("Erro em _refresh: $e");
     }
   }
 
-  Future<void> _startMonitoring() async {
+  Future<void> _toggleMonitoring() async {
     if (!isOverlayGranted || !isUsageStatsGranted) return;
-    try {
+
+    if (isMonitoringActive) {
+      FlutterBackgroundService().invoke("stopService");
+      await Future.delayed(const Duration(milliseconds: 500));
+    } else {
       if (await Permission.notification.isDenied) {
         await Permission.notification.request();
       }
-
       await initializeBackgroundService();
-
-      final service = FlutterBackgroundService();
-      if (!await service.isRunning()) {
-        await service.startService();
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Monitoramento ativo!")),
-        );
-      }
-    } catch (e) {
-      debugPrint("Erro crítico ao iniciar serviço: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Erro ao iniciar: $e")),
-        );
-      }
+      await FlutterBackgroundService().startService();
     }
+    await _refresh();
   }
 
-  Future<void> _requestOverlay() async {
-    await _showDialog(
-      title: "Janela flutuante",
-      body: "Na próxima tela, encontre o AppTime na lista e ative a permissão.",
-      onConfirm: () async {
-        await Permission.systemAlertWindow.request();
-        _checkPermissions();
-      },
-    );
+  Future<void> _requestPermission(Future<void> Function() action) async {
+    await action();
+    await _refresh();
   }
-
-  Future<void> _requestUsage() async {
-    await _showDialog(
-      title: "Acesso ao uso",
-      body: "Toque em AppTime na lista e permita o acesso às estatísticas de uso.",
-      onConfirm: () async {
-        await UsageStats.grantUsagePermission();
-        _checkPermissions();
-      },
-    );
-  }
-
-  Future<void> _requestBattery() async {
-    await _showDialog(
-      title: "Funcionamento em segundo plano",
-      body: "Permita que o AppTime ignore a otimização de bateria para continuar funcionando.",
-      onConfirm: () async {
-        final messenger = ScaffoldMessenger.of(context);
-        try {
-          await Permission.ignoreBatteryOptimizations.request();
-        } catch (_) {
-          messenger.showSnackBar(
-            const SnackBar(content: Text("Configure manualmente nas configurações de bateria.")),
-          );
-        }
-        _checkPermissions();
-      },
-    );
-  }
-
-  Future<void> _showDialog({
-    required String title,
-    required String body,
-    required VoidCallback onConfirm,
-  }) {
-    return showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: Text(body),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusLG)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Cancelar"),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              onConfirm();
-            },
-            child: const Text("Entendi"),
-          ),
-        ],
-      ),
-    );
-  }
-
-  bool get _allGranted => isOverlayGranted && isUsageStatsGranted;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final allGranted = isOverlayGranted && isUsageStatsGranted;
 
     return Scaffold(
       appBar: AppBar(title: const Text("AppTime")),
       body: ListView(
         padding: const EdgeInsets.all(AppTheme.spacingMD),
         children: [
-          Text(
-            "Permissões necessárias",
-            style: theme.textTheme.titleMedium,
+          // Status card
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(AppTheme.spacingMD),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: (isMonitoringActive ? AppTheme.success : theme.colorScheme.outline)
+                          .withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isMonitoringActive ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+                      color: isMonitoringActive ? AppTheme.success : theme.colorScheme.outline,
+                    ),
+                  ),
+                  const SizedBox(width: AppTheme.spacingMD),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isMonitoringActive ? "Monitoramento ativo" : "Monitoramento inativo",
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        Text(
+                          isMonitoringActive
+                              ? "O overlay está funcionando em segundo plano"
+                              : "Inicie o monitoramento para ver o overlay",
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(height: AppTheme.spacingXS),
-          Text(
-            "Conceda as permissões abaixo para o AppTime funcionar corretamente.",
-            style: theme.textTheme.bodyMedium,
-          ),
+
           const SizedBox(height: AppTheme.spacingLG),
+          Text("Permissões", style: theme.textTheme.titleMedium),
+          const SizedBox(height: AppTheme.spacingSM),
 
           _PermissionTile(
             title: "Janela flutuante",
             subtitle: "Exibir o overlay sobre outros apps",
             granted: isOverlayGranted,
-            onTap: _requestOverlay,
+            onTap: () => _requestPermission(() async {
+              await Permission.systemAlertWindow.request();
+            }),
           ),
           const SizedBox(height: AppTheme.spacingSM),
           _PermissionTile(
             title: "Estatísticas de uso",
             subtitle: "Detectar qual app está em uso",
             granted: isUsageStatsGranted,
-            onTap: _requestUsage,
+            onTap: () => _requestPermission(() async {
+              await UsageStats.grantUsagePermission();
+            }),
           ),
           const SizedBox(height: AppTheme.spacingSM),
           _PermissionTile(
             title: "Segundo plano",
             subtitle: "Manter o monitoramento sem interrupções",
             granted: isBatteryOptIgnored,
-            onTap: _requestBattery,
             required: false,
+            onTap: () => _requestPermission(() async {
+              await Permission.ignoreBatteryOptimizations.request();
+            }),
           ),
 
           const SizedBox(height: AppTheme.spacingXL),
 
           FilledButton(
-            onPressed: _allGranted ? _startMonitoring : null,
+            onPressed: allGranted ? _toggleMonitoring : null,
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(52),
+              backgroundColor: isMonitoringActive ? AppTheme.error : AppTheme.primary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppTheme.radiusMD),
               ),
             ),
-            child: const Text(
-              "Iniciar monitoramento",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            child: Text(
+              isMonitoringActive ? "Pausar monitoramento" : "Iniciar monitoramento",
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -238,7 +205,6 @@ class _PermissionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Card(
       child: ListTile(
         onTap: granted ? null : onTap,
@@ -252,10 +218,7 @@ class _PermissionTile extends StatelessWidget {
           ),
         ),
         title: Text(title, style: theme.textTheme.titleMedium),
-        subtitle: Text(
-          subtitle,
-          style: theme.textTheme.bodyMedium,
-        ),
+        subtitle: Text(subtitle, style: theme.textTheme.bodyMedium),
         trailing: !granted && required
             ? Icon(Icons.chevron_right_rounded, color: theme.colorScheme.outline)
             : null,

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:usage_stats/usage_stats.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import '../config/overlay_config.dart';
+import 'storage_service.dart';
 
 class AppTracker {
   static String lastApp = "";
@@ -10,7 +11,17 @@ class AppTracker {
   static int launcherSeconds = 0;
   static String lastDailyStats = "0 min";
   static String lastDeviceUsage24h = "0 min";
+  static double lastGoalPct = 0.0;
   static Timer? _pollTimer;
+  static Timer? _healthTimer;
+
+  static void stopPolling() {
+    _pollTimer?.cancel();
+    _healthTimer?.cancel();
+    _pollTimer = null;
+    _healthTimer = null;
+  }
+
   static final List<String> launchers = [
     "com.google.android.apps.nexuslauncher",
     "com.sec.android.app.launcher",
@@ -57,57 +68,110 @@ class AppTracker {
         launcherSeconds = 0;
 
         if (isLauncher) {
-          await _ensureOverlayVisible();
-
-          if (unlockedNow) {
+          if (StorageService.showOnLauncher) {
+            await _ensureOverlayVisible();
             final unlockCount = await getUnlockCount24h();
             lastDeviceUsage24h = await getDeviceUsage24h();
 
+            // LAUNCHER_WAKE quando acabou de desbloquear (contexto de uso real)
+            // LAUNCHER_HOME quando veio de um app (pressionou home) — mesmos dados
+            final eventType = unlockedNow ? "LAUNCHER_WAKE" : "LAUNCHER_HOME";
             await _shareDataSafely({
-              "type": "LAUNCHER_WAKE",
+              "type": eventType,
               "unlock_count": unlockCount,
               "device_usage_24h": lastDeviceUsage24h,
             });
-          } else {
-            await FlutterOverlayWindow.closeOverlay();
           }
+        } else if (!StorageService.showOnAppOpen || !StorageService.isAppEnabled(currentApp)) {
+          // Overlay desativado globalmente ou para este app específico
         } else {
           await _ensureOverlayVisible();
 
           int openCount = await getOpenCount24h(currentApp);
           lastDailyStats = await getAppUsage24h(currentApp);
+          await _updateGoalPct();
 
-          await _shareDataSafely({"type": "APP_OPEN", "count": openCount});
+          final payload = <String, dynamic>{"type": "APP_OPEN", "count": openCount};
+          if (lastGoalPct > 0) payload['goal_pct'] = lastGoalPct;
+          await _shareDataSafely(payload);
         }
       } else if (!isLauncher) {
         sessionSeconds++;
 
         if (sessionSeconds == 60 || sessionSeconds % 30 == 0) {
           lastDailyStats = await getAppUsage24h(currentApp);
+          await _updateGoalPct();
         }
 
-        await _shareDataSafely({
-          "type": "APP_TICK",
-          "seconds": sessionSeconds,
-          "daily_stats": lastDailyStats,
-        });
+        if (StorageService.showOnAppOpen && StorageService.isAppEnabled(currentApp)) {
+          final payload = <String, dynamic>{
+            "type": "APP_TICK",
+            "seconds": sessionSeconds,
+            "daily_stats": lastDailyStats,
+          };
+          if (lastGoalPct > 0) payload['goal_pct'] = lastGoalPct;
+          await _shareDataSafely(payload);
+        }
       } else {
         launcherSeconds++;
 
-        if (_lastAppWasLauncher && launcherSeconds % 20 == 0) {
+        if (_lastAppWasLauncher && launcherSeconds % 10 == 0) {
           lastDeviceUsage24h = await getDeviceUsage24h();
-          await _shareDataSafely({
+          await _updateGoalPct();
+          final payload = <String, dynamic>{
             "type": "LAUNCHER_TICK",
             "device_usage_24h": lastDeviceUsage24h,
-          });
+          };
+          if (lastGoalPct > 0) payload['goal_pct'] = lastGoalPct;
+          await _shareDataSafely(payload);
         }
       }
 
       _lastAppWasLauncher = isLauncher;
     });
+
+    // Health check: reativa o overlay a cada 60s se o serviço estiver rodando
+    // mas o overlay tiver morrido (ex: baixa memória, reinício do sistema)
+    _healthTimer = Timer.periodic(const Duration(seconds: 60), (_) async {
+      if (lastApp.isEmpty) return;
+      final isActive = await FlutterOverlayWindow.isActive();
+      if (!isActive && !launchers.contains(lastApp)) {
+        await _ensureOverlayVisible();
+      }
+    });
+  }
+
+  static Future<void> _updateGoalPct() async {
+    final goal = StorageService.dailyGoalMinutes;
+    if (goal <= 0) {
+      lastGoalPct = 0.0;
+      return;
+    }
+    final usedMinutes = await _getDeviceUsageMinutes24h();
+    lastGoalPct = usedMinutes / goal;
+  }
+
+  static Future<double> _getDeviceUsageMinutes24h() async {
+    final end = DateTime.now();
+    final start = end.subtract(const Duration(hours: 24));
+    try {
+      final stats = await UsageStats.queryUsageStats(start, end);
+      int totalMs = 0;
+      for (final item in stats) {
+        if (item.totalTimeInForeground == null || item.packageName == null) continue;
+        if (launchers.contains(item.packageName!)) continue;
+        totalMs += int.tryParse(item.totalTimeInForeground!) ?? 0;
+      }
+      return totalMs / 60000;
+    } catch (_) {
+      return 0;
+    }
   }
 
   static Future<void> _ensureOverlayVisible() async {
+    final isActive = await FlutterOverlayWindow.isActive();
+    if (isActive) return;
+
     await FlutterOverlayWindow.showOverlay(
       alignment: OverlayConfig.alignment,
       height: OverlayConfig.height,

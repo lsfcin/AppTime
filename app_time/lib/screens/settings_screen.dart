@@ -1,0 +1,458 @@
+import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:flutter_overlay_window/flutter_overlay_window.dart';
+import '../services/storage_service.dart';
+import '../theme/app_theme.dart';
+import 'per_app_screen.dart';
+
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  late bool _showBorder;
+  late bool _showBackground;
+  late bool _showOnLauncher;
+  late bool _showOnAppOpen;
+  late int _rotationInterval;
+  late double _fontSize;
+  late String _anchor;
+  late double _hOffsetPct;
+  late double _topOffsetDp;
+  late int _dailyGoalMinutes;
+
+  StreamSubscription<dynamic>? _overlaySubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+    // Sync UI when overlay drag updates position
+    _overlaySubscription = FlutterOverlayWindow.overlayListener.listen(_onOverlayData);
+  }
+
+  @override
+  void dispose() {
+    _overlaySubscription?.cancel();
+    super.dispose();
+  }
+
+  void _onOverlayData(dynamic raw) {
+    Map<String, dynamic> data;
+    if (raw is Map<String, dynamic>) {
+      data = raw;
+    } else if (raw is Map) {
+      data = raw.map((k, v) => MapEntry(k.toString(), v));
+    } else if (raw is String && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        data = decoded is Map ? decoded.map((k, v) => MapEntry(k.toString(), v)) : {};
+      } catch (_) {
+        data = {};
+      }
+    } else {
+      return;
+    }
+
+    if (data['type'] != 'SETTINGS_UPDATE') return;
+
+    setState(() {
+      if (data.containsKey('anchor')) _anchor = data['anchor'] as String;
+      if (data.containsKey('h_offset_pct')) _hOffsetPct = (data['h_offset_pct'] as num).toDouble();
+      if (data.containsKey('top_offset_dp')) _topOffsetDp = (data['top_offset_dp'] as num).toDouble();
+    });
+  }
+
+  void _loadSettings() {
+    _showBorder = StorageService.showBorder;
+    _showBackground = StorageService.showBackground;
+    _showOnLauncher = StorageService.showOnLauncher;
+    _showOnAppOpen = StorageService.showOnAppOpen;
+    _rotationInterval = StorageService.rotationIntervalSeconds;
+    _fontSize = StorageService.overlayFontSize;
+    _anchor = StorageService.overlayAnchor;
+    _hOffsetPct = StorageService.overlayLeftOffsetPct;
+    _topOffsetDp = StorageService.overlayTopOffsetDp;
+    _dailyGoalMinutes = StorageService.dailyGoalMinutes;
+  }
+
+  static String _formatGoal(int minutes) {
+    if (minutes == 0) return "Desativada";
+    if (minutes < 60) return "${minutes}min";
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    return m > 0 ? "${h}h ${m}min" : "${h}h";
+  }
+
+  void _showGoalDialog(BuildContext context) {
+    int tempGoal = _dailyGoalMinutes;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text("Meta diária"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                tempGoal == 0 ? "Desativada" : _formatGoal(tempGoal),
+                style: Theme.of(ctx).textTheme.headlineSmall?.copyWith(
+                  color: AppTheme.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Slider(
+                value: tempGoal.toDouble(),
+                min: 0,
+                max: 360,
+                divisions: 24, // steps de 15min
+                onChanged: (v) => setDialogState(() => tempGoal = v.round()),
+              ),
+              Text(
+                "0 = desativado  •  máx 6h",
+                style: Theme.of(ctx).textTheme.bodySmall,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("Cancelar"),
+            ),
+            FilledButton(
+              onPressed: () {
+                setState(() => _dailyGoalMinutes = tempGoal);
+                StorageService.dailyGoalMinutes = tempGoal;
+                Navigator.pop(ctx);
+              },
+              child: const Text("Salvar"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("Configurações")),
+      body: ListView(
+        padding: const EdgeInsets.all(AppTheme.spacingMD),
+        children: [
+          // Seção: Overlay
+          _SectionHeader(title: "Overlay", theme: theme),
+          const SizedBox(height: AppTheme.spacingSM),
+
+          Card(
+            child: Column(
+              children: [
+                _ToggleTile(
+                  title: "Mostrar contorno",
+                  subtitle: "Exibe uma borda fina ao redor do chip de tempo",
+                  value: _showBorder,
+                  onChanged: (v) {
+                    setState(() => _showBorder = v);
+                    StorageService.showBorder = v;
+                    FlutterOverlayWindow.shareData({'type': 'SETTINGS_UPDATE', 'show_border': v});
+                  },
+                ),
+                const Divider(),
+                _ToggleTile(
+                  title: "Mostrar fundo",
+                  subtitle: "Exibe um fundo semitransparente atrás do texto",
+                  value: _showBackground,
+                  onChanged: (v) {
+                    setState(() => _showBackground = v);
+                    StorageService.showBackground = v;
+                    FlutterOverlayWindow.shareData({'type': 'SETTINGS_UPDATE', 'show_background': v});
+                  },
+                ),
+                const Divider(),
+                _SliderTile(
+                  title: "Intervalo de rotação",
+                  subtitle: "Tempo (em segundos) que cada informação fica visível",
+                  value: _rotationInterval.toDouble(),
+                  min: 2,
+                  max: 15,
+                  divisions: 13,
+                  label: "${_rotationInterval}s",
+                  onChanged: (v) {
+                    setState(() => _rotationInterval = v.round());
+                    StorageService.rotationIntervalSeconds = v.round();
+                    FlutterOverlayWindow.shareData({
+                      'type': 'SETTINGS_UPDATE',
+                      'rotation_interval': v.round(),
+                    });
+                  },
+                ),
+                const Divider(),
+                _SliderTile(
+                  title: "Tamanho da fonte",
+                  subtitle: "Tamanho do texto no overlay",
+                  value: _fontSize,
+                  min: 10,
+                  max: 18,
+                  divisions: 8,
+                  label: "${_fontSize.round()}px",
+                  onChanged: (v) {
+                    setState(() => _fontSize = v);
+                    StorageService.overlayFontSize = v;
+                    FlutterOverlayWindow.shareData({'type': 'SETTINGS_UPDATE', 'font_size': v});
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: AppTheme.spacingLG),
+
+          // Seção: Comportamento
+          _SectionHeader(title: "Comportamento", theme: theme),
+          const SizedBox(height: AppTheme.spacingSM),
+
+          Card(
+            child: Column(
+              children: [
+                _ToggleTile(
+                  title: "Mostrar ao abrir app",
+                  subtitle: "Exibe a contagem de aberturas ao trocar de aplicativo",
+                  value: _showOnAppOpen,
+                  onChanged: (v) {
+                    setState(() => _showOnAppOpen = v);
+                    StorageService.showOnAppOpen = v;
+                  },
+                ),
+                const Divider(),
+                _ToggleTile(
+                  title: "Mostrar na tela inicial",
+                  subtitle: "Exibe desbloqueios e uso total ao pressionar home",
+                  value: _showOnLauncher,
+                  onChanged: (v) {
+                    setState(() => _showOnLauncher = v);
+                    StorageService.showOnLauncher = v;
+                  },
+                ),
+                const Divider(),
+                ListTile(
+                  title: Text("Por aplicativo", style: theme.textTheme.titleMedium),
+                  subtitle: Text(
+                    "Desative o overlay para apps específicos",
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppTheme.spacingMD,
+                    vertical: AppTheme.spacingXS,
+                  ),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PerAppScreen()),
+                  ),
+                ),
+                const Divider(),
+                ListTile(
+                  title: Text("Meta diária", style: theme.textTheme.titleMedium),
+                  subtitle: Text(
+                    _dailyGoalMinutes == 0
+                        ? "Desativada"
+                        : "Limite: ${_formatGoal(_dailyGoalMinutes)} — o chip fica laranja/vermelho ao se aproximar",
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppTheme.spacingMD,
+                    vertical: AppTheme.spacingXS,
+                  ),
+                  onTap: () => _showGoalDialog(context),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: AppTheme.spacingLG),
+
+          // Seção: Posicionamento
+          _SectionHeader(title: "Posicionamento", theme: theme),
+          const SizedBox(height: AppTheme.spacingSM),
+
+          Card(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(AppTheme.spacingMD),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Âncora", style: theme.textTheme.titleMedium),
+                      Text(
+                        "Onde o chip aparece em relação à câmera frontal",
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: AppTheme.spacingSM),
+                      SegmentedButton<String>(
+                        segments: const [
+                          ButtonSegment(value: 'left', label: Text("Esquerda"), icon: Icon(Icons.arrow_back_rounded, size: 16)),
+                          ButtonSegment(value: 'right', label: Text("Direita"), icon: Icon(Icons.arrow_forward_rounded, size: 16)),
+                          ButtonSegment(value: 'below', label: Text("Abaixo"), icon: Icon(Icons.arrow_downward_rounded, size: 16)),
+                        ],
+                        selected: {_anchor},
+                        onSelectionChanged: (s) {
+                          final v = s.first;
+                          setState(() => _anchor = v);
+                          StorageService.overlayAnchor = v;
+                          FlutterOverlayWindow.shareData({'type': 'SETTINGS_UPDATE', 'anchor': v});
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(),
+                _SliderTile(
+                  title: "Posição horizontal",
+                  subtitle: "Distância da câmera (esq/dir) ou da borda (abaixo)",
+                  value: _hOffsetPct,
+                  min: 0.3,
+                  max: 0.8,
+                  divisions: 25,
+                  label: "${(_hOffsetPct * 100).round()}%",
+                  onChanged: (v) {
+                    setState(() => _hOffsetPct = v);
+                    StorageService.overlayLeftOffsetPct = v;
+                    FlutterOverlayWindow.shareData({'type': 'SETTINGS_UPDATE', 'h_offset_pct': v});
+                  },
+                ),
+                const Divider(),
+                _SliderTile(
+                  title: "Posição vertical",
+                  subtitle: "Distância do topo da tela em dp",
+                  value: _topOffsetDp,
+                  min: 0,
+                  max: 40,
+                  divisions: 20,
+                  label: "${_topOffsetDp.round()}dp",
+                  onChanged: (v) {
+                    setState(() => _topOffsetDp = v);
+                    StorageService.overlayTopOffsetDp = v;
+                    FlutterOverlayWindow.shareData({'type': 'SETTINGS_UPDATE', 'top_offset_dp': v});
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final ThemeData theme;
+
+  const _SectionHeader({required this.title, required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title.toUpperCase(),
+      style: theme.textTheme.labelSmall?.copyWith(
+        fontWeight: FontWeight.w700,
+        letterSpacing: 1.0,
+        color: AppTheme.primary,
+      ),
+    );
+  }
+}
+
+class _ToggleTile extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _ToggleTile({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SwitchListTile(
+      title: Text(title, style: theme.textTheme.titleMedium),
+      subtitle: Text(subtitle, style: theme.textTheme.bodyMedium),
+      value: value,
+      onChanged: onChanged,
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.spacingMD,
+        vertical: AppTheme.spacingXS,
+      ),
+    );
+  }
+}
+
+class _SliderTile extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final double value;
+  final double min;
+  final double max;
+  final int divisions;
+  final String label;
+  final ValueChanged<double> onChanged;
+
+  const _SliderTile({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.divisions,
+    required this.label,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.spacingMD,
+        vertical: AppTheme.spacingSM,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(title, style: theme.textTheme.titleMedium),
+              Text(label, style: theme.textTheme.labelSmall?.copyWith(
+                color: AppTheme.primary,
+                fontWeight: FontWeight.w700,
+              )),
+            ],
+          ),
+          Text(subtitle, style: theme.textTheme.bodyMedium),
+          const SizedBox(height: AppTheme.spacingXS),
+          Slider(
+            value: value,
+            min: min,
+            max: max,
+            divisions: divisions,
+            onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
+  }
+}
