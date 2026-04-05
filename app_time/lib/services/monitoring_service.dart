@@ -11,6 +11,7 @@ class AppTracker {
   static int launcherSeconds = 0;
   static String lastDailyStats = "0 min";
   static String lastDeviceUsage24h = "0 min";
+  static double lastGoalPct = 0.0;
   static Timer? _pollTimer;
   static Timer? _healthTimer;
 
@@ -88,32 +89,41 @@ class AppTracker {
 
           int openCount = await getOpenCount24h(currentApp);
           lastDailyStats = await getAppUsage24h(currentApp);
+          await _updateGoalPct();
 
-          await _shareDataSafely({"type": "APP_OPEN", "count": openCount});
+          final payload = <String, dynamic>{"type": "APP_OPEN", "count": openCount};
+          if (lastGoalPct > 0) payload['goal_pct'] = lastGoalPct;
+          await _shareDataSafely(payload);
         }
       } else if (!isLauncher) {
         sessionSeconds++;
 
         if (sessionSeconds == 60 || sessionSeconds % 30 == 0) {
           lastDailyStats = await getAppUsage24h(currentApp);
+          await _updateGoalPct();
         }
 
         if (StorageService.showOnAppOpen && StorageService.isAppEnabled(currentApp)) {
-          await _shareDataSafely({
+          final payload = <String, dynamic>{
             "type": "APP_TICK",
             "seconds": sessionSeconds,
             "daily_stats": lastDailyStats,
-          });
+          };
+          if (lastGoalPct > 0) payload['goal_pct'] = lastGoalPct;
+          await _shareDataSafely(payload);
         }
       } else {
         launcherSeconds++;
 
         if (_lastAppWasLauncher && launcherSeconds % 10 == 0) {
           lastDeviceUsage24h = await getDeviceUsage24h();
-          await _shareDataSafely({
+          await _updateGoalPct();
+          final payload = <String, dynamic>{
             "type": "LAUNCHER_TICK",
             "device_usage_24h": lastDeviceUsage24h,
-          });
+          };
+          if (lastGoalPct > 0) payload['goal_pct'] = lastGoalPct;
+          await _shareDataSafely(payload);
         }
       }
 
@@ -129,6 +139,33 @@ class AppTracker {
         await _ensureOverlayVisible();
       }
     });
+  }
+
+  static Future<void> _updateGoalPct() async {
+    final goal = StorageService.dailyGoalMinutes;
+    if (goal <= 0) {
+      lastGoalPct = 0.0;
+      return;
+    }
+    final usedMinutes = await _getDeviceUsageMinutes24h();
+    lastGoalPct = usedMinutes / goal;
+  }
+
+  static Future<double> _getDeviceUsageMinutes24h() async {
+    final end = DateTime.now();
+    final start = end.subtract(const Duration(hours: 24));
+    try {
+      final stats = await UsageStats.queryUsageStats(start, end);
+      int totalMs = 0;
+      for (final item in stats) {
+        if (item.totalTimeInForeground == null || item.packageName == null) continue;
+        if (launchers.contains(item.packageName!)) continue;
+        totalMs += int.tryParse(item.totalTimeInForeground!) ?? 0;
+      }
+      return totalMs / 60000;
+    } catch (_) {
+      return 0;
+    }
   }
 
   static Future<void> _ensureOverlayVisible() async {

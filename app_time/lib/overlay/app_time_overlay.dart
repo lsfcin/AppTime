@@ -29,6 +29,9 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
   double _hOffsetPct = StorageService.overlayLeftOffsetPct;
   double _topOffsetDp = StorageService.overlayTopOffsetDp;
 
+  // Meta de uso diário (0 = sem meta ou meta não definida)
+  double _goalPct = 0.0;
+
   // Drag-to-reposition state
   bool _dragging = false;
   Offset _dragPosition = Offset.zero;
@@ -56,11 +59,15 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
     final type = data['type'] as String?;
 
     if (type == 'APP_OPEN') {
-      _handleAppOpen((data['count'] as num?)?.toInt() ?? 0);
+      _handleAppOpen(
+        (data['count'] as num?)?.toInt() ?? 0,
+        (data['goal_pct'] as num?)?.toDouble(),
+      );
     } else if (type == 'APP_TICK') {
       _handleAppTick(
         (data['seconds'] as num?)?.toInt() ?? 0,
         data['daily_stats'] as String? ?? '0 min',
+        (data['goal_pct'] as num?)?.toDouble(),
       );
     } else if (type == 'LAUNCHER_WAKE' || type == 'LAUNCHER_HOME') {
       _handleLauncherWake(
@@ -68,28 +75,33 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
         data['device_usage_24h'] as String? ?? '0 min',
       );
     } else if (type == 'LAUNCHER_TICK') {
-      _handleLauncherTick(data['device_usage_24h'] as String? ?? '0 min');
+      _handleLauncherTick(
+        data['device_usage_24h'] as String? ?? '0 min',
+        (data['goal_pct'] as num?)?.toDouble(),
+      );
     } else if (type == 'SETTINGS_UPDATE') {
       _handleSettingsUpdate(data);
     }
   }
 
-  void _handleAppOpen(int count) {
+  void _handleAppOpen(int count, double? goalPct) {
     if (_dragging) return;
     _openCount = count;
     _sessionSeconds = 0;
     _isLauncherMode = false;
     _showingTime = false;
+    if (goalPct != null) _goalPct = goalPct;
     _show();
     _startRotation();
     _scheduleFade(const Duration(seconds: 5));
   }
 
-  void _handleAppTick(int seconds, String daily) {
+  void _handleAppTick(int seconds, String daily, double? goalPct) {
     if (_dragging) return;
     setState(() {
       _sessionSeconds = seconds;
       _usage24h = daily;
+      if (goalPct != null) _goalPct = goalPct;
     });
     _scheduleFade(const Duration(seconds: 5));
   }
@@ -105,9 +117,12 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
     _scheduleFade(const Duration(seconds: 8));
   }
 
-  void _handleLauncherTick(String deviceUsage24h) {
+  void _handleLauncherTick(String deviceUsage24h, double? goalPct) {
     if (_dragging) return;
-    setState(() => _usage24h = deviceUsage24h);
+    setState(() {
+      _usage24h = deviceUsage24h;
+      if (goalPct != null) _goalPct = goalPct;
+    });
   }
 
   void _handleSettingsUpdate(Map<String, dynamic> data) {
@@ -281,19 +296,31 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
         builder: (context, constraints) {
           final w = constraints.maxWidth;
 
+          // Cor do chip baseada na meta de uso
+          Color? goalTint;
+          if (_goalPct >= 1.0) {
+            goalTint = Colors.red.withValues(alpha: 0.30);
+          } else if (_goalPct >= 0.75) {
+            goalTint = Colors.orange.withValues(alpha: 0.25);
+          }
+
           final chipWidget = Container(
             constraints: const BoxConstraints(minHeight: 24),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
             decoration: BoxDecoration(
-              color: _showBackground
-                  ? clockColor.withValues(alpha: _dragging ? 0.22 : 0.12)
-                  : Colors.transparent,
+              color: goalTint ??
+                  (_showBackground
+                      ? clockColor.withValues(alpha: _dragging ? 0.22 : 0.12)
+                      : Colors.transparent),
               borderRadius: BorderRadius.circular(12),
-              border: (_showBorder || _dragging)
+              border: (_showBorder || _dragging || goalTint != null)
                   ? Border.all(
                       color: _dragging
                           ? Colors.white.withValues(alpha: 0.8)
-                          : clockColor.withValues(alpha: 0.28),
+                          : goalTint != null
+                              ? (_goalPct >= 1.0 ? Colors.red : Colors.orange)
+                                  .withValues(alpha: 0.7)
+                              : clockColor.withValues(alpha: 0.28),
                       width: _dragging ? 1.5 : 1,
                     )
                   : null,

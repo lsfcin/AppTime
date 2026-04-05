@@ -23,6 +23,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late String _anchor;
   late double _hOffsetPct;
   late double _topOffsetDp;
+  late int _dailyGoalMinutes;
 
   StreamSubscription<dynamic>? _overlaySubscription;
 
@@ -76,6 +77,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _anchor = StorageService.overlayAnchor;
     _hOffsetPct = StorageService.overlayLeftOffsetPct;
     _topOffsetDp = StorageService.overlayTopOffsetDp;
+    _dailyGoalMinutes = StorageService.dailyGoalMinutes;
+  }
+
+  static String _formatGoal(int minutes) {
+    if (minutes == 0) return "Desativada";
+    if (minutes < 60) return "${minutes}min";
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    return m > 0 ? "${h}h ${m}min" : "${h}h";
+  }
+
+  void _showGoalDialog(BuildContext context) {
+    int tempGoal = _dailyGoalMinutes;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text("Meta diária"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                tempGoal == 0 ? "Desativada" : _formatGoal(tempGoal),
+                style: Theme.of(ctx).textTheme.headlineSmall?.copyWith(
+                  color: AppTheme.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Slider(
+                value: tempGoal.toDouble(),
+                min: 0,
+                max: 360,
+                divisions: 24, // steps de 15min
+                onChanged: (v) => setDialogState(() => tempGoal = v.round()),
+              ),
+              Text(
+                "0 = desativado  •  máx 6h",
+                style: Theme.of(ctx).textTheme.bodySmall,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("Cancelar"),
+            ),
+            FilledButton(
+              onPressed: () {
+                setState(() => _dailyGoalMinutes = tempGoal);
+                StorageService.dailyGoalMinutes = tempGoal;
+                Navigator.pop(ctx);
+              },
+              child: const Text("Salvar"),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -196,6 +255,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     context,
                     MaterialPageRoute(builder: (_) => const PerAppScreen()),
                   ),
+                ),
+                const Divider(),
+                ListTile(
+                  title: Text("Meta diária", style: theme.textTheme.titleMedium),
+                  subtitle: Text(
+                    _dailyGoalMinutes == 0
+                        ? "Desativada"
+                        : "Limite: ${_formatGoal(_dailyGoalMinutes)} — o chip fica laranja/vermelho ao se aproximar",
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppTheme.spacingMD,
+                    vertical: AppTheme.spacingXS,
+                  ),
+                  onTap: () => _showGoalDialog(context),
                 ),
               ],
             ),
