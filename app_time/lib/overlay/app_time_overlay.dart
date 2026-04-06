@@ -13,14 +13,15 @@ class AppTimeOverlay extends StatefulWidget {
 
 class _AppTimeOverlayState extends State<AppTimeOverlay> {
   static const Duration _fadeDuration = Duration(seconds: 2);
-  Duration _rotationInterval = Duration(seconds: StorageService.rotationIntervalSeconds);
+  // phase: 0 = contagem "Nx", 1 = uso diário "d|...", 2 = sessão "s|..."
+  int _phase = 0;
 
   double _opacity = 0.0;
   int _openCount = 0;
   int _sessionSeconds = 0;
-  String _usage24h = '';
+  int _dailyMs = 0; // uso do app nas últimas 24h em ms
+  String _usage24h = ''; // uso do dispositivo (launcher mode)
   bool _isLauncherMode = false;
-  bool _showingTime = false;
 
   bool _showBorder = StorageService.showBorder;
   bool _showBackground = StorageService.showBackground;
@@ -61,12 +62,13 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
     if (type == 'APP_OPEN') {
       _handleAppOpen(
         (data['count'] as num?)?.toInt() ?? 0,
+        (data['daily_ms'] as num?)?.toInt() ?? 0,
         (data['goal_pct'] as num?)?.toDouble(),
       );
     } else if (type == 'APP_TICK') {
       _handleAppTick(
         (data['seconds'] as num?)?.toInt() ?? 0,
-        data['daily_stats'] as String? ?? '0 min',
+        (data['daily_ms'] as num?)?.toInt(),
         (data['goal_pct'] as num?)?.toDouble(),
       );
     } else if (type == 'LAUNCHER_WAKE' || type == 'LAUNCHER_HOME') {
@@ -84,25 +86,26 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
     }
   }
 
-  void _handleAppOpen(int count, double? goalPct) {
+  void _handleAppOpen(int count, int dailyMs, double? goalPct) {
     if (_dragging) return;
     _openCount = count;
+    _dailyMs = dailyMs;
     _sessionSeconds = 0;
     _isLauncherMode = false;
-    _showingTime = false;
     if (goalPct != null) _goalPct = goalPct;
     _show();
     _startRotation();
-    _scheduleFade(const Duration(seconds: 5));
+    _scheduleFade(const Duration(seconds: 25));
   }
 
-  void _handleAppTick(int seconds, String daily, double? goalPct) {
+  void _handleAppTick(int seconds, int? dailyMs, double? goalPct) {
     if (_dragging) return;
     setState(() {
       _sessionSeconds = seconds;
-      _usage24h = daily;
+      if (dailyMs != null) _dailyMs = dailyMs;
       if (goalPct != null) _goalPct = goalPct;
     });
+    // Renew fade on every tick (5s debounce after last tick)
     _scheduleFade(const Duration(seconds: 5));
   }
 
@@ -111,7 +114,7 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
     _openCount = unlockCount;
     _usage24h = deviceUsage24h;
     _isLauncherMode = true;
-    _showingTime = false;
+    if (!mounted) return;
     _show();
     _startRotation();
     _scheduleFade(const Duration(seconds: 8));
@@ -127,11 +130,6 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
 
   void _handleSettingsUpdate(Map<String, dynamic> data) {
     setState(() {
-      final intervalSeconds = (data['rotation_interval'] as num?)?.toInt();
-      if (intervalSeconds != null) {
-        _rotationInterval = Duration(seconds: intervalSeconds);
-        if (_rotationTimer?.isActive == true) _startRotation();
-      }
       if (data.containsKey('show_border')) {
         _showBorder = data['show_border'] as bool;
       }
@@ -155,15 +153,22 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
 
   void _show() {
     if (!mounted) return;
-    setState(() => _opacity = 1.0);
+    setState(() {
+      _opacity = 1.0;
+      _phase = 0; // sempre começa mostrando a contagem
+    });
   }
 
   void _startRotation() {
     _rotationTimer?.cancel();
-    _rotationTimer = Timer.periodic(_rotationInterval, (_) {
+    // Fase 0: mostra "Nx" por 5s, depois começa a alternar d|/s| a cada 10s
+    _rotationTimer = Timer(const Duration(seconds: 5), () {
       if (!mounted) return;
-      if (!_showingTime && _sessionSeconds == 0 && !_isLauncherMode) return;
-      setState(() => _showingTime = !_showingTime);
+      setState(() => _phase = 1); // d|...
+      _rotationTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+        if (!mounted) return;
+        setState(() => _phase = _phase == 1 ? 2 : 1);
+      });
     });
   }
 
@@ -173,6 +178,7 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
       if (!mounted) return;
       setState(() => _opacity = 0.0);
       _rotationTimer?.cancel();
+      _rotationTimer = null;
     });
   }
 
@@ -256,13 +262,23 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
   }
 
   String get _displayText {
-    if (_showingTime) {
-      return _isLauncherMode ? _usage24h : _formatSessionTime(_sessionSeconds);
+    switch (_phase) {
+      case 1:
+        // d|: uso diário do app (ou device em launcher mode)
+        if (_isLauncherMode) return 'd|$_usage24h';
+        return 'd|${_formatDailyMs(_dailyMs)}';
+      case 2:
+        // s|: tempo de sessão
+        if (_isLauncherMode) return '${_openCount}x';
+        return 's|${_formatSession(_sessionSeconds)}';
+      default:
+        // phase 0: contagem de aberturas
+        return '${_openCount}x';
     }
-    return '${_openCount}x';
   }
 
-  String _formatSessionTime(int seconds) {
+  /// M:SS para sessões curtas, H:MM para longas
+  String _formatSession(int seconds) {
     if (seconds < 3600) {
       final m = seconds ~/ 60;
       final s = (seconds % 60).toString().padLeft(2, '0');
@@ -270,6 +286,15 @@ class _AppTimeOverlayState extends State<AppTimeOverlay> {
     }
     final h = seconds ~/ 3600;
     final m = ((seconds % 3600) ~/ 60).toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+
+  /// H:MM para ≥1h, Mmin para <1h
+  String _formatDailyMs(int ms) {
+    final totalMinutes = ms ~/ 60000;
+    if (totalMinutes < 60) return '${totalMinutes}min';
+    final h = totalMinutes ~/ 60;
+    final m = (totalMinutes % 60).toString().padLeft(2, '0');
     return '$h:$m';
   }
 

@@ -10,6 +10,7 @@ class AppTracker {
   static int sessionSeconds = 0;
   static int launcherSeconds = 0;
   static String lastDailyStats = "0 min";
+  static int lastDailyMs = 0; // cached raw ms for overlay rotation
   static String lastDeviceUsage24h = "0 min";
   static double lastGoalPct = 0.0;
   static Timer? _pollTimer;
@@ -88,10 +89,15 @@ class AppTracker {
           await _ensureOverlayVisible();
 
           int openCount = await getOpenCount24h(currentApp);
-          lastDailyStats = await getAppUsage24h(currentApp);
+          lastDailyMs = await _getAppUsageMs24h(currentApp);
+          lastDailyStats = _formatMs(lastDailyMs);
           await _updateGoalPct();
 
-          final payload = <String, dynamic>{"type": "APP_OPEN", "count": openCount};
+          final payload = <String, dynamic>{
+            "type": "APP_OPEN",
+            "count": openCount,
+            "daily_ms": lastDailyMs,
+          };
           if (lastGoalPct > 0) payload['goal_pct'] = lastGoalPct;
           await _shareDataSafely(payload);
         }
@@ -99,7 +105,8 @@ class AppTracker {
         sessionSeconds++;
 
         if (sessionSeconds == 60 || sessionSeconds % 30 == 0) {
-          lastDailyStats = await getAppUsage24h(currentApp);
+          lastDailyMs = await _getAppUsageMs24h(currentApp);
+          lastDailyStats = _formatMs(lastDailyMs);
           await _updateGoalPct();
         }
 
@@ -107,7 +114,7 @@ class AppTracker {
           final payload = <String, dynamic>{
             "type": "APP_TICK",
             "seconds": sessionSeconds,
-            "daily_stats": lastDailyStats,
+            "daily_ms": lastDailyMs,
           };
           if (lastGoalPct > 0) payload['goal_pct'] = lastGoalPct;
           await _shareDataSafely(payload);
@@ -139,6 +146,27 @@ class AppTracker {
         await _ensureOverlayVisible();
       }
     });
+  }
+
+  static Future<int> _getAppUsageMs24h(String packageName) async {
+    final end = DateTime.now();
+    final start = end.subtract(const Duration(hours: 24));
+    try {
+      final stats = await UsageStats.queryUsageStats(start, end);
+      final info = stats.firstWhere((s) => s.packageName == packageName,
+          orElse: () => UsageInfo());
+      return int.tryParse(info.totalTimeInForeground ?? '0') ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  static String _formatMs(int ms) {
+    final minutes = ms / 60000;
+    if (minutes < 60) return "${minutes.round()} min";
+    final h = (minutes / 60).floor();
+    final m = (minutes % 60).round();
+    return m > 0 ? "${h}h ${m}min" : "${h}h";
   }
 
   static Future<void> _updateGoalPct() async {
