@@ -18,7 +18,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _showBackground;
   late bool _showOnLauncher;
   late bool _showOnAppOpen;
-  late int _rotationInterval;
   late double _fontSize;
   late String _anchor;
   late double _hOffsetPct;
@@ -72,7 +71,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _showBackground = StorageService.showBackground;
     _showOnLauncher = StorageService.showOnLauncher;
     _showOnAppOpen = StorageService.showOnAppOpen;
-    _rotationInterval = StorageService.rotationIntervalSeconds;
     _fontSize = StorageService.overlayFontSize;
     _anchor = StorageService.overlayAnchor;
     _hOffsetPct = StorageService.overlayLeftOffsetPct;
@@ -172,24 +170,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     setState(() => _showBackground = v);
                     StorageService.showBackground = v;
                     FlutterOverlayWindow.shareData({'type': 'SETTINGS_UPDATE', 'show_background': v});
-                  },
-                ),
-                const Divider(),
-                _SliderTile(
-                  title: "Intervalo de rotação",
-                  subtitle: "Tempo (em segundos) que cada informação fica visível",
-                  value: _rotationInterval.toDouble(),
-                  min: 2,
-                  max: 15,
-                  divisions: 13,
-                  label: "${_rotationInterval}s",
-                  onChanged: (v) {
-                    setState(() => _rotationInterval = v.round());
-                    StorageService.rotationIntervalSeconds = v.round();
-                    FlutterOverlayWindow.shareData({
-                      'type': 'SETTINGS_UPDATE',
-                      'rotation_interval': v.round(),
-                    });
                   },
                 ),
                 const Divider(),

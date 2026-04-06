@@ -67,11 +67,11 @@ class AppTheme {
         ),
         switchTheme: SwitchThemeData(
           thumbColor: WidgetStateProperty.resolveWith(
-            (states) => states.contains(WidgetState.selected) ? primary : Colors.white,
+            (states) => states.contains(WidgetState.selected) ? Colors.white : Colors.white,
           ),
           trackColor: WidgetStateProperty.resolveWith(
             (states) => states.contains(WidgetState.selected)
-                ? primary.withValues(alpha: 0.9)
+                ? primaryDark
                 : Colors.grey.shade300,
           ),
         ),
@@ -139,11 +139,11 @@ class AppTheme {
         ),
         switchTheme: SwitchThemeData(
           thumbColor: WidgetStateProperty.resolveWith(
-            (states) => states.contains(WidgetState.selected) ? primary : Colors.grey.shade400,
+            (states) => states.contains(WidgetState.selected) ? Colors.white : Colors.grey.shade400,
           ),
           trackColor: WidgetStateProperty.resolveWith(
             (states) => states.contains(WidgetState.selected)
-                ? primary.withValues(alpha: 0.9)
+                ? primaryDark
                 : Colors.grey.shade800,
           ),
         ),

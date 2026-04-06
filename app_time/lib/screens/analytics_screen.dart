@@ -159,7 +159,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                   final h = rod.toY;
                                   final label = h < 1
                                       ? '${(h * 60).round()} min'
-                                      : '${h.toStringAsFixed(1)} hrs';
+                                      : '${h.toStringAsFixed(1)}h';
                                   return BarTooltipItem(label,
                                       const TextStyle(color: Colors.white, fontWeight: FontWeight.w600));
                                 },
@@ -320,7 +320,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   static String _formatMinutes(double minutes) {
     if (minutes < 60) return '${minutes.round()} min';
-    return '${(minutes / 60).toStringAsFixed(1)} hrs';
+    return '${(minutes / 60).toStringAsFixed(1)}h';
   }
 }
 
