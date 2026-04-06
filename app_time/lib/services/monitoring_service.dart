@@ -254,6 +254,6 @@ class AppTracker {
 
   static String _format24hUsage(double minutes) {
     if (minutes < 60) return "${minutes.round()} min";
-    return "${(minutes / 60).toStringAsFixed(1)} hrs";
+    return "${(minutes / 60).toStringAsFixed(1)}h";
   }
 }
