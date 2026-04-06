@@ -207,6 +207,8 @@ class AppTracker {
       enableDrag: false,
       flag: OverlayFlag.clickThrough,
       startPosition: const OverlayPosition(0, 0),
+      overlayTitle: "Contador ativo",
+      overlayContent: "AppTime está monitorando em segundo plano",
     );
   }
 
