@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'home_screen.dart';
 import 'settings_screen.dart';
 import 'analytics_screen.dart';
-import 'insights_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -18,7 +17,6 @@ class _MainScreenState extends State<MainScreen> {
     HomeScreen(),
     SettingsScreen(),
     AnalyticsScreen(),
-    InsightsScreen(),
   ];
 
   @override
@@ -46,11 +44,6 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.bar_chart_outlined),
             selectedIcon: Icon(Icons.bar_chart_rounded),
             label: "Análise",
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.lightbulb_outlined),
-            selectedIcon: Icon(Icons.lightbulb_rounded),
-            label: "Insights",
           ),
         ],
       ),
