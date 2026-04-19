@@ -36,10 +36,10 @@ class StorageService {
   double get overlayTopDp => _prefs.getDouble('overlay_top_dp') ?? 40.0;
   set overlayTopDp(double v) => _prefs.setDouble('overlay_top_dp', v);
 
-  bool get overlayShowBorder => _prefs.getBool('overlay_show_border') ?? false;
+  bool get overlayShowBorder => _prefs.getBool('overlay_show_border') ?? true;
   set overlayShowBorder(bool v) => _prefs.setBool('overlay_show_border', v);
 
-  bool get overlayShowBackground => _prefs.getBool('overlay_show_background') ?? false;
+  bool get overlayShowBackground => _prefs.getBool('overlay_show_background') ?? true;
   set overlayShowBackground(bool v) => _prefs.setBool('overlay_show_background', v);
 
   /// Controls whether the floating overlay is shown at all.
