@@ -232,4 +232,9 @@ class AppLocalizationsPt extends AppLocalizations {
   @override String get deleteAllDataDone => 'Todos os dados foram apagados.';
   @override String get privacyPolicyTitle => 'Política de privacidade';
   @override String get privacyPolicySub => 'Todos os dados ficam no dispositivo — sem rede, sem terceiros';
+  @override String get disclaimerTitle => 'Aviso legal';
+  @override String get disclaimerBody =>
+      'O AppTime é para fins informativos e de produtividade. '
+      'Não é um dispositivo ou tratamento médico. '
+      'O conteúdo é baseado em pesquisas publicadas e não substitui orientação profissional.';
 }

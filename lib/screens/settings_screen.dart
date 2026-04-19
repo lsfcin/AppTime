@@ -224,9 +224,15 @@ class _SettingsScreenState extends State<SettingsScreen>
                   subtitle: Text(l10n.privacyPolicySub),
                   trailing: const Icon(Icons.open_in_new, size: 16),
                   onTap: () => launchUrl(
-                    Uri.parse('https://YOUR_GITHUB_USER.github.io/apptime/privacy_policy.html'),
+                    Uri.parse('https://lsfcin.github.io/apptime/privacy_policy.html'),
                     mode: LaunchMode.externalApplication,
                   ),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.info_outline),
+                  title: Text(l10n.disclaimerTitle),
+                  subtitle: Text(l10n.disclaimerBody),
                 ),
                 const Divider(height: 1),
                 ListTile(

@@ -199,6 +199,8 @@ abstract class AppLocalizations {
   String get deleteAllDataDone;
   String get privacyPolicyTitle;
   String get privacyPolicySub;
+  String get disclaimerTitle;
+  String get disclaimerBody;
 }
 
 // ─── Delegate ────────────────────────────────────────────────────────────────

@@ -475,7 +475,10 @@ class MonitoringService : Service() {
             val raw = prefs.getString("flutter.disabled_apps", null) ?: return emptySet()
             return try {
                 val arr = org.json.JSONArray(raw)
-                (0 until arr.length()).map { arr.getString(it) }.toSet()
+                (0 until arr.length())
+                    .map { arr.getString(it) }
+                    .filter { it.isNotEmpty() && it.matches(Regex("[a-zA-Z0-9_.]+")) }
+                    .toSet()
             } catch (_: Exception) { emptySet() }
         }
 

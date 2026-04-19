@@ -9,9 +9,9 @@ object PmMessages {
     /** 24h total phone time doubled the limit. */
     fun phoneTimeExceeded(lang: String): String =
         if (lang == "en")
-            "you've hit your daily screen limit\nexcessive use shrinks prefrontal control\nstep away — your brain needs recovery"
+            "you've hit your daily screen limit\nexcessive use may impair prefrontal control\nstep away — your brain needs recovery"
         else
-            "você atingiu seu limite diário de tela\nuso excessivo reduz o controle pré-frontal\nafaste-se — seu cérebro precisa recuperar"
+            "você atingiu seu limite diário de tela\nuso excessivo pode prejudicar o controle pré-frontal\nafaste-se — seu cérebro precisa recuperar"
 
     /** Per-app 24h limit doubled. [appName] = last segment of package. */
     fun appLimitExceeded(lang: String, appName: String): String =
@@ -37,9 +37,9 @@ object PmMessages {
     /** Social app opened before wakeup-hour threshold. */
     fun wakeupSocial(lang: String): String =
         if (lang == "en")
-            "social media at wakeup spikes cortisol\nyour brain deserves a calm, intentional start\nown your morning before the feed does"
+            "social media at wakeup may spike cortisol\nyour brain deserves a calm, intentional start\nown your morning before the feed does"
         else
-            "redes sociais ao acordar elevam o cortisol\nseu cérebro merece um início calmo e intencional\ncuide da sua manhã antes do feed"
+            "redes sociais ao acordar podem elevar o cortisol\nseu cérebro merece um início calmo e intencional\ncuide da sua manhã antes do feed"
 
     /** Triggered 3 s after an unlock when unlock count exceeds limit. */
     fun unlockExceeded(lang: String): String =

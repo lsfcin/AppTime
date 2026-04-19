@@ -2,7 +2,7 @@ name: apptime
 description: App Android para consciência e redução do uso compulsivo do celular.
 publish_to: 'none'
 
-version: 0.1.1+2
+version: 1.0.0+1
 
 environment:
   sdk: ^3.11.1

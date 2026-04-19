@@ -229,4 +229,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override String get deleteAllDataDone => 'All data deleted.';
   @override String get privacyPolicyTitle => 'Privacy policy';
   @override String get privacyPolicySub => 'All data stays on your device — no network, no third parties';
+  @override String get disclaimerTitle => 'Disclaimer';
+  @override String get disclaimerBody =>
+      'AppTime is for informational and productivity purposes only. '
+      'It is not a medical device or treatment. '
+      'Content is based on published research and does not replace professional advice.';
 }
