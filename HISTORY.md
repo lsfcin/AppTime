@@ -95,6 +95,29 @@
 - Corrected PM trigger timing so context-specific messages fire at the right moment.
 - Expanded insights coverage requests for brain-rot and phone-vs-drug addiction comparisons, with both diagnosis and strategy-focused cards.
 
+## M19 — Security and privacy hardening
+- Added `android:usesCleartextTraffic="false"` to manifest.
+- Added 90-day automatic data pruning on app start (`StorageService.pruneOldData`).
+- Added "Delete all data" action in Settings → Data & Privacy.
+- Drafted privacy policy HTML at `docs/privacy_policy.html`; linked from Settings.
+- Verified overlay `FLAG_NOT_TOUCHABLE` — confirmed non-intercepting.
+- Code review: logged 3 findings in ROADMAP (dead permission, BootReceiver export gap, `parseDisabledApps` silent failure).
+
+## M18 — Navigation, analytics, and UX polish
+- Settings tab moved to first (left-most) position.
+- Auto-starts monitoring on first launch once permissions are granted.
+- Control level terminology standardized: Off / Light / Moderate / Intense.
+- Per-app chip labels fixed (were showing "min"/"max" instead of renamed levels).
+- `com.google.android.googlequicksearchbox` treated as launcher (excluded from per-app lists, overlay follows launcher rules).
+- App colors: Threads and ChatGPT use black (B&W icon apps); AI Studio added.
+- Overlay simplified: timer-only display, no count phase, no delays or fades; show/hide is immediate.
+- Overlay correctly hidden on apps the user marks as unmonitored (fixed cross-process `disabledApps` encoding: `setStringList` → JSON via `setString`).
+- Analytics: yesterday pattern and last-7-days pattern charts added (horizontal stacked bars, per-hour rows, per-app colors).
+- Horizontal time axis (0 → 1h) added to both pattern charts.
+- Per-app usage caption shows 7-day total.
+- `_debugCheckColorConflicts` moved to once-per-session (was causing 172-frame skips on every rebuild).
+- Gap backfill on service restart: replays `UsageEvents` for periods when service was not running.
+
 ## M17 — Persistent bugs and final hardening
 - Confirmed/fixed top-5 app chart behavior: top 5 by usage with distinct colors and caption; remaining apps collapsed into “other”.
 - Restored access to Per-app control through Settings.
