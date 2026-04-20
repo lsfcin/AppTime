@@ -1,4 +1,4 @@
-package com.lucasf.apptime
+package com.lsf.apptime
 
 import android.app.ActivityManager
 import android.app.AppOpsManager

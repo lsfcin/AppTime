@@ -1,4 +1,4 @@
-package com.lucasf.apptime
+package com.lsf.apptime
 
 /**
  * Mirror of lib/models/goal_config.dart — must stay in sync.

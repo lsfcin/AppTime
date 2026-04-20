@@ -1,4 +1,4 @@
-package com.lucasf.apptime
+package com.lsf.apptime
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter

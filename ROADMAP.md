@@ -55,7 +55,7 @@ x Build all materials/documents, manifests, don't know, what you can so we avoid
 
 #### 1. App identity & metadata
 x Set a real `applicationId` (e.g. `com.lsf.apptime`) and confirm it is final — it cannot change after publish
-  - Using `com.lucasf.apptime` — confirmed final
+  - Using `com.lsf.apptime` — confirmed final (changed from com.lucasf.apptime to bypass a MIUI install block)
 x Bump `versionName` to `1.0.0` and `versionCode` to `1` in `build.gradle`
   - Set via pubspec.yaml `version: 1.0.0+1`
 x Replace placeholder app name in `strings.xml` / `AndroidManifest.xml` (`AppTime`)

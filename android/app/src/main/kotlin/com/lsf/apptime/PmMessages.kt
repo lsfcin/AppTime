@@ -1,4 +1,4 @@
-package com.lucasf.apptime
+package com.lsf.apptime
 
 /**
  * F.PM messages — 2-3 lines, ~8 words each, no trailing dot, lowercase first letter.

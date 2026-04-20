@@ -1,4 +1,4 @@
-package com.lucasf.apptime
+package com.lsf.apptime
 
 import android.app.Notification
 import android.app.NotificationChannel
