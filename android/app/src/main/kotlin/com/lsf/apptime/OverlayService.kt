@@ -143,8 +143,8 @@ class OverlayService : Service() {
         if (!isViewAdded) return
         val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
 
-        val showBg     = prefs.getBoolean("flutter.overlay_show_background", false)
-        val showBorder = prefs.getBoolean("flutter.overlay_show_border", false)
+        val showBg     = prefs.getBoolean("flutter.overlay_show_background", true)
+        val showBorder = prefs.getBoolean("flutter.overlay_show_border", true)
         val topDp      = readFloat(prefs, "flutter.overlay_top_dp", 40f).coerceIn(0f, 800f)
         val density    = resources.displayMetrics.density
 

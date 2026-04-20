@@ -48,7 +48,7 @@ const kAppColors = <String, Color>{
   'com.nu.production':                       Color(0xFF8A05BE),
   'com.studiosol.cifraclub':                 Color(0xFFFF6600),
   'com.google.android.keep':                 Color(0xFFFF7043),
-  'com.lucasf.apptime':                      Color(0xFF6366F1),
+  'com.lsf.apptime':                      Color(0xFF6366F1),
   'com.google.android.gm':                   Color(0xFFD44638),
   'com.facebook.katana':                     Color(0xFF1877F2),
   'com.miui.home':                           Color(0xFF78909C),
@@ -112,7 +112,7 @@ const kAppLabels = <String, String>{
   'com.nu.production':                       'Nubank',
   'com.studiosol.cifraclub':                 'CifraClub',
   'com.google.android.keep':                 'Keep',
-  'com.lucasf.apptime':                      'AppTime',
+  'com.lsf.apptime':                      'AppTime',
   'com.google.android.gm':                   'Gmail',
   'com.facebook.katana':                     'Facebook',
   'com.miui.home':                           'Início',
@@ -174,8 +174,17 @@ const _kGeneric  = {'music', 'messenger', 'messages', 'browser', 'player',
 
 /// Returns the best display label for a package name.
 /// Tier 2 (kAppLabels) → Tier 3 fallback (heuristic from package ID).
+// Runtime labels loaded from PackageManager — populated once at startup.
+Map<String, String> _dynamicLabels = {};
+void seedDynamicLabels(Map<String, String> labels) => _dynamicLabels = labels;
+
+// Runtime launchers resolved from CATEGORY_HOME — populated once at startup.
+Set<String> _dynamicLaunchers = {};
+void seedDynamicLaunchers(Set<String> launchers) => _dynamicLaunchers = launchers;
+
 String labelForApp(String pkg) {
   if (kAppLabels.containsKey(pkg)) return kAppLabels[pkg]!;
+  if (_dynamicLabels.containsKey(pkg)) return _dynamicLabels[pkg]!;
 
   final segments = pkg.split('.');
 
@@ -198,9 +207,11 @@ String labelForApp(String pkg) {
 }
 
 bool isLauncherPkg(String pkg) =>
+    _dynamicLaunchers.contains(pkg) ||
     pkg == 'com.miui.home' ||
     pkg == 'com.google.android.googlequicksearchbox' ||
     pkg.contains('.launcher') ||
+    pkg.endsWith('launcher') ||
     pkg.endsWith('.home') ||
     pkg == 'com.android.systemui';
 

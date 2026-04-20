@@ -28,6 +28,7 @@ class MonitoringService : Service() {
     private var watchdogTick = 0
     private var lastDate: String = ""
     private var lastPruneDate: String = ""
+    private var effectiveLaunchers: Set<String> = LAUNCHERS
 
     // Timestamp of the most recent ACTION_USER_PRESENT (unlock). Used to
     // determine whether a launcher session started via direct unlock or via
@@ -89,6 +90,13 @@ class MonitoringService : Service() {
         startForeground(NOTIF_ID, buildNotification())
         usageStatsManager = getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager
         prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+        val homeIntent = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_HOME) }
+        val fromQuery = packageManager.queryIntentActivities(homeIntent, 0)
+            .map { it.activityInfo.packageName }.toSet()
+        val defaultLauncher = packageManager
+            .resolveActivity(homeIntent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+            ?.activityInfo?.packageName
+        effectiveLaunchers = LAUNCHERS + fromQuery + setOfNotNull(defaultLauncher)
         lastDate = today()
         migrateCorruptedDeviceDaily()
         val screenFilter = IntentFilter().apply {
@@ -97,6 +105,7 @@ class MonitoringService : Service() {
         }
         registerReceiver(screenReceiver, screenFilter)
         backfillGap()
+        backfillHistory()
         handler.post(pollRunnable)
         return START_STICKY
     }
@@ -115,10 +124,16 @@ class MonitoringService : Service() {
         // long the service was inactive if it gets killed and restarted later.
         prefs.edit().putLong(HEARTBEAT_KEY, System.currentTimeMillis()).apply()
 
-        // Watchdog: restart OverlayService every 30s in case it was killed
+        // Watchdog: restart OverlayService every 30s; refresh default launcher every 60s.
         if (++watchdogTick >= 30) {
             watchdogTick = 0
             startService(Intent(this, OverlayService::class.java))
+            val homeIntent = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_HOME) }
+            val defaultPkg = packageManager
+                .resolveActivity(homeIntent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+                ?.activityInfo?.packageName
+            if (defaultPkg != null && !effectiveLaunchers.contains(defaultPkg))
+                effectiveLaunchers = effectiveLaunchers + defaultPkg
         }
 
         // Day rollover: flush the active session so pre-4am usage isn't
@@ -157,7 +172,9 @@ class MonitoringService : Service() {
             return
         }
 
-        val isLauncher = LAUNCHERS.contains(current)
+        val isLauncher = effectiveLaunchers.contains(current)
+            || current.endsWith("launcher")
+            || current.endsWith(".home")
 
         if (current != lastPackage) {
             // App switch — close previous session, open new one
@@ -234,10 +251,21 @@ class MonitoringService : Service() {
     private fun backfillGap() {
         val lastHeartbeat = prefs.getLong(HEARTBEAT_KEY, 0L)
         val now = System.currentTimeMillis()
-        if (lastHeartbeat == 0L || (now - lastHeartbeat) < GAP_THRESHOLD_MS) return
 
-        val gapStart = lastHeartbeat
-        val gapEnd   = now
+        val gapStart = if (lastHeartbeat == 0L) {
+            // Fresh install / first ever run: fill from today's 4am boundary.
+            java.util.Calendar.getInstance().apply {
+                if (get(java.util.Calendar.HOUR_OF_DAY) < 4) add(java.util.Calendar.DATE, -1)
+                set(java.util.Calendar.HOUR_OF_DAY, 4)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }.timeInMillis
+        } else {
+            if ((now - lastHeartbeat) < GAP_THRESHOLD_MS) return
+            lastHeartbeat
+        }
+        val gapEnd = now
 
         val events = usageStatsManager.queryEvents(gapStart, gapEnd)
         val event  = UsageEvents.Event()
@@ -273,6 +301,98 @@ class MonitoringService : Service() {
 
         for (seg in segments) {
             accumulateDailyMs(seg.pkg, seg.startMs, seg.endMs)
+        }
+    }
+
+    /**
+     * Scans the last 30 days for days with no recorded data and fills them from
+     * Android's UsageStatsManager. Recent days (events still retained, typically
+     * ~7 days) get full per-app/per-hour detail via queryEvents; older days fall
+     * back to queryUsageStats(INTERVAL_DAILY) which gives daily totals only.
+     * Runs at most once per day in a background thread.
+     */
+    private fun backfillHistory() {
+        val now = System.currentTimeMillis()
+        val lastRun = prefs.getLong("flutter.history_backfill_ts", 0L)
+        if (now - lastRun < 23 * 3_600_000L) return
+        prefs.edit().putLong("flutter.history_backfill_ts", now).apply()
+
+        Thread {
+            for (i in 1..30) {
+                val cal = java.util.Calendar.getInstance().apply {
+                    timeInMillis = now
+                    add(java.util.Calendar.DATE, -i)
+                    set(java.util.Calendar.HOUR_OF_DAY, 4)
+                    set(java.util.Calendar.MINUTE, 0)
+                    set(java.util.Calendar.SECOND, 0)
+                    set(java.util.Calendar.MILLISECOND, 0)
+                }
+                val dayStart = cal.timeInMillis
+                val dayEnd   = dayStart + 24 * 3_600_000L
+                val dateKey  = epochToDateKey(dayStart)
+
+                if (hasAnyDataForDate(dateKey)) continue
+
+                if (!backfillDayFromEvents(dateKey, dayStart, dayEnd))
+                    backfillDayFromStats(dateKey, dayStart, dayEnd)
+            }
+        }.start()
+    }
+
+    private fun hasAnyDataForDate(dateKey: String): Boolean {
+        if (prefs.getLong("flutter.device_daily_ms_$dateKey", 0L) > 0L) return true
+        return prefs.all.keys.any { it.startsWith("flutter.daily_ms_") && it.endsWith("_$dateKey") }
+    }
+
+    /** Replays UsageEvents for [start, end) into accumulateDailyMs. Returns true if any data found. */
+    private fun backfillDayFromEvents(dateKey: String, start: Long, end: Long): Boolean {
+        val events = usageStatsManager.queryEvents(start, end)
+        val event = UsageEvents.Event()
+        data class Seg(val pkg: String, val startMs: Long, val endMs: Long)
+        val segments = mutableListOf<Seg>()
+        var lastFgPkg: String? = null
+        var lastFgTs = start
+
+        while (events.getNextEvent(event)) {
+            when (event.eventType) {
+                UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+                    if (lastFgPkg != null && event.timeStamp > lastFgTs)
+                        segments += Seg(lastFgPkg!!, lastFgTs, event.timeStamp)
+                    lastFgPkg = event.packageName
+                    lastFgTs  = event.timeStamp
+                }
+                UsageEvents.Event.MOVE_TO_BACKGROUND,
+                UsageEvents.Event.SCREEN_NON_INTERACTIVE -> {
+                    if (lastFgPkg != null && event.timeStamp > lastFgTs) {
+                        segments += Seg(lastFgPkg!!, lastFgTs, event.timeStamp)
+                        lastFgPkg = null
+                    }
+                }
+            }
+        }
+        if (lastFgPkg != null && end > lastFgTs)
+            segments += Seg(lastFgPkg!!, lastFgTs, end)
+
+        if (segments.isEmpty()) return false
+        for (seg in segments) accumulateDailyMs(seg.pkg, seg.startMs, seg.endMs)
+        return true
+    }
+
+    /** Falls back to aggregated daily stats when event log has been trimmed by Android. */
+    private fun backfillDayFromStats(dateKey: String, start: Long, end: Long) {
+        val statsList = usageStatsManager.queryUsageStats(
+            android.app.usage.UsageStatsManager.INTERVAL_DAILY, start, end)
+        var deviceTotal = 0L
+        for (stats in statsList) {
+            val ms = stats.totalTimeInForeground
+            if (ms <= 0L) continue
+            val key = "flutter.daily_ms_${stats.packageName}_$dateKey"
+            prefs.edit().putLong(key, prefs.getLong(key, 0L) + ms).apply()
+            deviceTotal += ms
+        }
+        if (deviceTotal > 0L) {
+            val key = "flutter.device_daily_ms_$dateKey"
+            prefs.edit().putLong(key, prefs.getLong(key, 0L) + deviceTotal).apply()
         }
     }
 

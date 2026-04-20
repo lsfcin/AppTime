@@ -38,6 +38,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
   // ── Per-app list ──────────────────────────────────────────────────────────
   _Sort _sort = _Sort.usage;
   Map<String, String> _appLabels = {};
+  Set<String> _launchers = {};
 
   @override
   void initState() {
@@ -57,8 +58,15 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
   }
 
   Future<void> _loadAppLabels() async {
-    final labels = await ServiceChannel.getInstalledAppLabels();
-    if (mounted) setState(() => _appLabels = labels);
+    final results = await Future.wait([
+      ServiceChannel.getInstalledAppLabels(),
+      ServiceChannel.getLaunchers(),
+    ]);
+    final labels = results[0] as Map<String, String>;
+    final launchers = results[1] as Set<String>;
+    seedDynamicLabels(labels);
+    seedDynamicLaunchers(launchers);
+    if (mounted) setState(() { _appLabels = labels; _launchers = launchers; });
   }
 
   // 4am boundary
@@ -94,8 +102,9 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
   }
 
   bool _showInList(String pkg) {
+    if (isLauncherPkg(pkg) || _launchers.contains(pkg)) return false;
     if (!isUserFacingApp(pkg)) return false;
-    if (_appLabels.isEmpty) return true; // still loading → show kAppLabels apps
+    if (_appLabels.isEmpty) return true;
     return _appLabels.containsKey(pkg) || kAppLabels.containsKey(pkg);
   }
 

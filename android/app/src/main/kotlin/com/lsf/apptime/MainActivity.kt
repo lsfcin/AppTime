@@ -56,14 +56,25 @@ class MainActivity : FlutterActivity() {
                     "getInstalledApps" -> {
                         val pm = packageManager
                         val apps = mutableMapOf<String, String>()
-                        for (appInfo in pm.getInstalledApplications(0)) {
-                            val isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
-                            if (!isSystem) {
-                                apps[appInfo.packageName] =
-                                    pm.getApplicationLabel(appInfo).toString()
-                            }
+                        val launcherIntent = Intent(Intent.ACTION_MAIN, null).apply {
+                            addCategory(Intent.CATEGORY_LAUNCHER)
+                        }
+                        for (ri in pm.queryIntentActivities(launcherIntent, 0)) {
+                            apps[ri.activityInfo.packageName] = ri.loadLabel(pm).toString()
                         }
                         result.success(apps)
+                    }
+                    "getLaunchers" -> {
+                        val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                            addCategory(Intent.CATEGORY_HOME)
+                        }
+                        val fromQuery = packageManager
+                            .queryIntentActivities(homeIntent, 0)
+                            .map { it.activityInfo.packageName }.toSet()
+                        val defaultPkg = packageManager
+                            .resolveActivity(homeIntent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+                            ?.activityInfo?.packageName
+                        result.success((fromQuery + setOfNotNull(defaultPkg)).toList())
                     }
                     else -> result.notImplemented()
                 }

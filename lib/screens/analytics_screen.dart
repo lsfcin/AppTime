@@ -5,13 +5,15 @@ import '../l10n/app_localizations.dart';
 import '../services/analytics_service.dart';
 import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
-import '../utils/app_info.dart' show labelForApp;
+import '../services/service_channel.dart';
+import '../utils/app_info.dart';
 
 // ─── Passive app heuristic ────────────────────────────────────────────────────
 const _passivePatterns = [
   'instagram', 'tiktok', 'youtube', 'netflix', 'twitter', 'facebook',
   'reddit', 'pinterest', 'snapchat', 'twitch', 'hulu', 'disneyplus',
   'kwai', 'likee', 'reels', 'shorts',
+  'tinder', 'bumble', 'hinge', 'badoo', 'happn', 'okcupid', 'grindr',
 ];
 
 bool _isPassive(String pkg) {
@@ -39,6 +41,17 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
     super.initState();
     _analytics = AnalyticsService(widget.storage);
     _tabs = TabController(length: 3, vsync: this);
+    _seedLabels();
+  }
+
+  Future<void> _seedLabels() async {
+    final results = await Future.wait([
+      ServiceChannel.getInstalledAppLabels(),
+      ServiceChannel.getLaunchers(),
+    ]);
+    seedDynamicLabels(results[0] as Map<String, String>);
+    seedDynamicLaunchers(results[1] as Set<String>);
+    if (mounted) setState(() {});
   }
 
   @override
@@ -331,7 +344,7 @@ class _Tab7d extends StatelessWidget {
     }
     // Exclude launchers and pseudoapps from dopamine drain — not real user triggers.
     final sorted = aggApps.values
-        .where((a) => !_isLauncher(a.packageName) && !_isPseudoApp(a.packageName))
+        .where((a) => isUserFacingApp(a.packageName))
         .toList()
       ..sort((a, b) => b.opens.compareTo(a.opens));
     final topFive = sorted.take(5).toList();
@@ -529,7 +542,7 @@ class _Tab30d extends StatelessWidget {
     final aggApps = <String, _AppAgg>{};
     for (final s in summaries) {
       for (final a in s.apps) {
-        if (_isLauncher(a.packageName) || _isPseudoApp(a.packageName)) continue;
+        if (!isUserFacingApp(a.packageName)) continue;
         final agg = aggApps.putIfAbsent(a.packageName, () => _AppAgg(a.packageName));
         agg.ms += a.dailyMs;
         agg.opens += a.openCount;
@@ -701,7 +714,7 @@ const _kAppColors = <String, Color>{
   'com.nu.production':                       Color(0xFF8A05BE), // Nubank purple
   'com.studiosol.cifraclub':                 Color(0xFFFF6600), // CifraClub orange
   'com.google.android.keep':                 Color(0xFFFF7043), // Keep deep-orange (was #FBBC04, exact dup of Clash of Clans)
-  'com.lucasf.apptime':                      Color(0xFF6366F1), // AppTime indigo
+  'com.lsf.apptime':                      Color(0xFF6366F1), // AppTime indigo
   'com.google.android.gm':                   Color(0xFFD44638), // Gmail red-orange
   'com.facebook.katana':                     Color(0xFF1877F2), // Facebook blue
   'com.miui.home':                           Color(0xFF78909C), // Launcher grey-blue
@@ -722,34 +735,6 @@ Color _colorForApp(String pkg) =>
 
 String _labelForApp(String pkg) => labelForApp(pkg);
 
-bool _isLauncher(String pkg) =>
-    pkg == 'com.miui.home' ||
-    pkg.contains('.launcher') ||
-    pkg.endsWith('.home') ||
-    pkg == 'com.android.systemui';
-
-/// System / infrastructure packages that should be hidden from charts
-/// and grouped into "outros". These are not real user-facing apps.
-bool _isPseudoApp(String pkg) {
-  const exact = {
-    'com.google.android.gms',
-    'com.android.vending',
-    'com.google.android.providers.media.module',
-    'com.android.settings',
-    'com.miui.securitycenter',
-    'com.android.permissioncontroller',
-    'com.google.android.documentsui',
-    'com.android.systemui',
-    'com.miui.systemAdSolution',
-    'com.android.packageinstaller',
-    'com.google.android.packageinstaller',
-  };
-  if (exact.contains(pkg)) return true;
-  return pkg.contains('photopicker') ||
-      pkg.contains('permissioncontroller') ||
-      pkg.contains('.provision') ||
-      pkg.contains('.setup');
-}
 
 /// Returns a short label for a day string: weekday abbreviation + "DD/M".
 /// E.g. "2026-04-14" → "ter 14/4"
@@ -867,7 +852,7 @@ class _YesterdayPatternChart extends StatelessWidget {
     // still appears in the "outros" bucket.
     final dailyTotals = <String, int>{
       for (final e in appHourly.entries)
-        if (!_isLauncher(e.key) && !_isPseudoApp(e.key) &&
+        if (isUserFacingApp(e.key) &&
             !disabledApps.contains(e.key))
           e.key: e.value.fold(0, (s, v) => s + v),
     };
@@ -1055,7 +1040,7 @@ class _LastDaysPatternChartState extends State<_LastDaysPatternChart> {
   List<String> _dayTopN(Map<String, List<int>> hourly) {
     final totals = <String, int>{
       for (final e in hourly.entries)
-        if (!_isLauncher(e.key) && !_isPseudoApp(e.key) &&
+        if (isUserFacingApp(e.key) &&
             !widget.disabledApps.contains(e.key))
           e.key: e.value.fold(0, (s, v) => s + v),
     };
