@@ -74,9 +74,9 @@ class AppLocalizationsPt extends AppLocalizations {
   @override String get levelChipMax => 'máx.';
   @override String get levelMenuNotMonitored => 'não monitorado';
   @override String get levelMenuDefault => 'padrão (meta global)';
-  @override String get levelMenuMinimal => 'leve';
-  @override String get levelMenuNormal => 'moderado';
-  @override String get levelMenuExtensive => 'intenso';
+  @override String get levelMenuMinimal => 'ocasional';
+  @override String get levelMenuNormal => 'regular';
+  @override String get levelMenuExtensive => 'frequente';
   @override String get perAppControlSub => 'Configurar monitoramento individualmente por app';
   @override String get monitorLauncherTitle => 'Monitorar tela inicial';
   @override String get monitorLauncherSub => 'Mostrar o visor ao voltar para a tela inicial';
@@ -195,27 +195,30 @@ class AppLocalizationsPt extends AppLocalizations {
       '4h crítico — Twenge et al. (2018), "Increases in Depressive Symptoms", '
       'Clinical Psychological Science.';
 
-  @override String get goalScreenTitle => 'Metas de uso';
-  @override String get goalLevelSectionTitle => 'Nível de controle';
+  @override String get goalScreenTitle => 'Consciência do uso';
+  @override String get goalLevelSectionTitle => 'Mensagens para consciência do uso';
+  @override String get goalLevelSectionCaption =>
+      'Escolha com que frequência você recebe mensagens personalizadas sobre '
+      'seus padrões de uso. Nada é bloqueado — as mensagens são apenas para reflexão.';
   @override String get goalLevelNone => 'Desligado';
-  @override String get goalLevelMinimal => 'Leve';
-  @override String get goalLevelNormal => 'Moderado';
-  @override String get goalLevelExtensive => 'Intenso';
+  @override String get goalLevelMinimal => 'Ocasional';
+  @override String get goalLevelNormal => 'Regular';
+  @override String get goalLevelExtensive => 'Frequente';
   @override String get goalRationaleNone =>
-      'Apenas consciência — sem feedback ativo. Ideal para começar a '
-      'entender seus padrões sem pressão.';
+      'Sem mensagens — apenas o contador no visor. Ideal para observar seus '
+      'padrões sem nenhuma interrupção.';
   @override String get goalRationaleMinimal =>
-      'Controle leve com lembretes suaves. Bom para quem quer '
-      'se manter consciente sem restrições fortes.';
+      'Limites tolerantes — mensagens aparecem só quando os limites são bem '
+      'ultrapassados. Bom para se manter consciente com pouca interrupção.';
   @override String get goalRationaleNormal =>
-      'Controle moderado — equilíbrio entre produtividade e lazer digital. '
-      'Alinha-se com recomendações de especialistas em saúde mental.';
+      'Limites moderados — lembretes periódicos ao atingir os limites. '
+      'Alinhado com recomendações de especialistas em saúde digital.';
   @override String get goalRationaleExtensive =>
-      'Controle intenso com limites rigorosos. Recomendado para quem quer '
-      'reduzir o uso de tela significativamente.';
+      'Limites rigorosos — mensagens frequentes assim que os limites são atingidos. '
+      'Recomendado para reduzir ativamente o tempo de tela.';
   @override String get goalOverrideGlobal => 'Global';
-  @override String get goalSettingsTile => 'Metas de uso';
-  @override String get goalSettingsSub => 'Níveis de feedback e limites por app';
+  @override String get goalSettingsTile => 'Consciência do uso';
+  @override String get goalSettingsSub => 'Frequência de mensagens e limites por app';
 
   @override String get sectionData => 'Dados e privacidade';
   @override String get deleteAllDataTitle => 'Apagar todos os dados';

@@ -162,9 +162,17 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
           ),
           const SizedBox(height: AppSpacing.lg),
 
-          // ── Goal level ─────────────────────────────────────────────────
+          // ── Usage awareness feedback ────────────────────────────────
           _SectionHeader(l10n.goalLevelSectionTitle),
-          const SizedBox(height: AppSpacing.sm),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: AppSpacing.sm),
+            child: Text(
+              l10n.goalLevelSectionCaption,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+            ),
+          ),
           _GoalLevelCard(
             level: 0,
             name: l10n.goalLevelNone,

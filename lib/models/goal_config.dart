@@ -1,10 +1,10 @@
 /// Goal level chosen by the user.
 /// Index matches the `goal_level` SharedPreferences Int (0–3).
 enum GoalLevel {
-  none,       // 0 — awareness only, no feedback
-  minimal,    // 1 — Light: relaxed limits
-  normal,     // 2 — Moderate: balanced
-  extensive,  // 3 — Intense: strict limits
+  none,       // 0 — counter only, no messages
+  minimal,    // 1 — Occasional: relaxed thresholds
+  normal,     // 2 — Regular: moderate thresholds
+  extensive,  // 3 — Frequent: strict thresholds
 }
 
 /// Thresholds for a single goal level, covering every usage metric.

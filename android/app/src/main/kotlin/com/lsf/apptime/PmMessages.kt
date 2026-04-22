@@ -47,5 +47,5 @@ object PmMessages {
         if (lang == "en")
             "Too many unlocks today. Each one conditions an impulsive checking habit. Before proceeding, take a breath and perform a sanity check about why did you unlock it."
         else
-            "Desbloqueios demais hoje. Cada um reforça o hábito impulsivo de verificar. Antes de prosseguir, respira fundo e aproveita para conscientemente avaliar o motivo de ter destravado o smartphone."
+            "Desbloqueios demais hoje. Cada um reforça o hábito impulsivo de verificar. Antes de prosseguir, respira fundo e aproveita para avaliar o motivo de ter destravado o smartphone."
 }

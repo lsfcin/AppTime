@@ -30,8 +30,10 @@ class OverlayService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private var isViewAdded = false
 
-    // ── Feedback engine (F.BN / F.VW / F.PM) ─────────────────────────────────
-    private lateinit var feedbackEngine: FeedbackEngine
+    // ── Feedback engine (PM — Personalized Messages) ──────────────────────────
+    // Lazily initialized once — must survive watchdog restarts (onStartCommand
+    // is called every 30 s by MonitoringService) without resetting PM schedules.
+    private var feedbackEngine: FeedbackEngine? = null
 
     // ── Feedback evaluation every 5 poll ticks (~2.5 s) ──────────────────────
     private var evalTick = 0
@@ -41,6 +43,9 @@ class OverlayService : Service() {
 
     // ── Slide suppression — only reposition window when y actually changes ────
     private var lastTopY = -1
+
+    // ── Width restoration — tracked to defer WRAP_CONTENT until timer text is set ──
+    private var pmWasActive = false
 
     // ── Poll loop ─────────────────────────────────────────────────────────────
     // Use a slower interval when the screen is off — the overlay is invisible
@@ -52,7 +57,7 @@ class OverlayService : Service() {
                 updateOverlay()
                 if (++evalTick >= 5) {
                     evalTick = 0
-                    feedbackEngine.evaluate()
+                    feedbackEngine?.evaluate()
                 }
             }
             handler.postDelayed(this, if (screenOn) 500L else 2_000L)
@@ -70,14 +75,16 @@ class OverlayService : Service() {
         prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
         powerManager = getSystemService(POWER_SERVICE) as PowerManager
         if (!isViewAdded) addOverlayView()
-        feedbackEngine = FeedbackEngine(
-            view         = overlayView,
-            handler      = handler,
-            getViewAdded = { isViewAdded },
-            setWindowWidth = ::setWindowWidth,
-            getMaxWidthPx  = { maxWidthPx },
-            getPrefs = { prefs },
-        )
+        if (feedbackEngine == null) {
+            feedbackEngine = FeedbackEngine(
+                view           = overlayView,
+                getViewAdded   = { isViewAdded },
+                setWindowWidth = ::setWindowWidth,
+                getMaxWidthPx  = { maxWidthPx },
+                getPrefs       = { prefs },
+                getAppLabel    = ::resolveAppLabel,
+            )
+        }
         handler.removeCallbacks(pollRunnable)
         handler.post(pollRunnable)
         return START_STICKY
@@ -111,8 +118,7 @@ class OverlayService : Service() {
             setPadding(16, 8, 16, 8)
             maxWidth = maxWidthPx
             setSingleLine(false)
-            scaleX = 1f
-            scaleY = 1f
+            alpha = 1f
         }
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -148,16 +154,12 @@ class OverlayService : Service() {
         val topDp      = readFloat(snap, "flutter.overlay_top_dp", 40f).coerceIn(0f, 800f)
         val density    = resources.displayMetrics.density
 
-        // Font size stored as Int for cross-process reliability;
-        // fall back to readFloat for any existing Float/Double legacy data.
-        // Flutter shared_preferences stores int as Long on Android; use getLong().toInt().
+        // Flutter shared_preferences stores int as Long on Android.
         val fontSizeBase = run {
             val asLong = snap["flutter.overlay_font_size"] as? Long ?: 0L
             if (asLong > 0L) asLong.toFloat()
             else readFloat(snap, "flutter.overlay_font_size", 14f)
         }.coerceIn(10f, 30f)
-
-        val fontSize = fontSizeBase * feedbackEngine.visualWeightMult
 
         val bg = GradientDrawable().apply {
             cornerRadius = 8f * density
@@ -169,7 +171,9 @@ class OverlayService : Service() {
         // Only reposition the window when y actually changed — calling
         // updateViewLayout every tick causes the OS to re-center WRAP_CONTENT
         // width on each frame, producing a subtle lateral slide.
-        if (!feedbackEngine.pmActive) {
+        val pmActive = feedbackEngine?.pmActive ?: false
+
+        if (!pmActive) {
             try {
                 val lp = overlayView.layoutParams as WindowManager.LayoutParams
                 val newY = (topDp * density).toInt()
@@ -184,12 +188,13 @@ class OverlayService : Service() {
             }
         }
 
-        if (feedbackEngine.pmActive) return   // PM owns text, size, alpha, and visibility
+        if (pmActive) {
+            pmWasActive = true
+            return   // PM owns text, textSize, typeface, alpha, visibility
+        }
 
-        // Font size is only written in TIMER/BREATHING phase — PM phase sets its own size.
-        overlayView.textSize = fontSize
-        overlayView.scaleX = 1f
-        overlayView.scaleY = 1f
+        overlayView.textSize = fontSizeBase
+        overlayView.alpha    = 1f
 
         val text           = snap["flutter.overlay_text"] as? String ?: ""
         val visible        = snap["flutter.overlay_visible"] as? Boolean ?: false
@@ -197,21 +202,18 @@ class OverlayService : Service() {
         val currentPkg     = snap["flutter.current_pkg"] as? String
         val isUnmonitored  = currentPkg != null &&
             AppConstants.parseDisabledApps(prefs).contains(currentPkg)
-        val shouldShow    = overlayEnabled && visible && text.isNotEmpty() && !isUnmonitored
+        val shouldShow     = overlayEnabled && visible && text.isNotEmpty() && !isUnmonitored
 
-        if (feedbackEngine.pmJustEnded && shouldShow) {
-            feedbackEngine.pmJustEnded = false
-            overlayView.text = text
-            overlayView.visibility = View.VISIBLE
-            overlayView.alpha = 0f   // anchor start point before animating
-            feedbackEngine.fadeInView(500L)
-            return
-        }
-
-        overlayView.text = text
-        // Only hard-reset alpha in TIMER phase; BREATHING phase owns alpha via its animator.
-        if (feedbackEngine.phase == FeedbackEngine.Phase.TIMER) overlayView.alpha = 1f
+        overlayView.text       = text
         overlayView.visibility = if (shouldShow) View.VISIBLE else View.INVISIBLE
+
+        // Width restoration: the timer text is now in place — safe to shrink the window.
+        // This fires only on the first tick after a PM ends so updateViewLayout isn't
+        // called every 500 ms (which would cause lateral drift on WRAP_CONTENT windows).
+        if (pmWasActive) {
+            pmWasActive = false
+            setWindowWidth(WindowManager.LayoutParams.WRAP_CONTENT)
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -241,6 +243,27 @@ class OverlayService : Service() {
             is String -> raw.toFloatOrNull() ?: default
             else      -> default
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // App label resolution — mirrors the Dart labelForApp() three-tier strategy
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private fun resolveAppLabel(pkg: String): String {
+        // Tier 1 — PackageManager display name (same source as AppInfoService.labels in Dart)
+        try {
+            return packageManager.getApplicationInfo(pkg, 0)
+                .loadLabel(packageManager).toString()
+        } catch (_: Exception) { /* app not installed or PM unavailable */ }
+
+        // Tier 3 — heuristic fallback matching Dart's labelForApp()
+        val tld   = setOf("com", "org", "net", "io", "br", "uk", "de", "fr", "co")
+        val noise = setOf("android", "app", "apps", "mobile", "production", "release",
+                          "mediaclient", "frontpage", "katana", "barcelona")
+        val brand = pkg.split(".")
+            .filter { it !in tld && it !in noise && it.length > 1 }
+            .firstOrNull() ?: pkg.split(".").last()
+        return brand.replaceFirstChar { it.uppercase() }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -72,9 +72,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override String get levelChipMax => 'max';
   @override String get levelMenuNotMonitored => 'not monitored';
   @override String get levelMenuDefault => 'default (global goal)';
-  @override String get levelMenuMinimal => 'light';
-  @override String get levelMenuNormal => 'moderate';
-  @override String get levelMenuExtensive => 'intense';
+  @override String get levelMenuMinimal => 'occasional';
+  @override String get levelMenuNormal => 'regular';
+  @override String get levelMenuExtensive => 'frequent';
   @override String get perAppControlSub => 'Enable / disable overlay per app';
   @override String get monitorLauncherTitle => 'Monitor home screen';
   @override String get monitorLauncherSub => 'Show overlay on the launcher / home screen';
@@ -192,27 +192,30 @@ class AppLocalizationsEn extends AppLocalizations {
       '4 h critical threshold — Twenge et al. (2018), "Increases in Depressive Symptoms", '
       'Clinical Psychological Science.';
 
-  @override String get goalScreenTitle => 'Usage goals';
-  @override String get goalLevelSectionTitle => 'Control level';
+  @override String get goalScreenTitle => 'Usage awareness';
+  @override String get goalLevelSectionTitle => 'Usage awareness feedback';
+  @override String get goalLevelSectionCaption =>
+      'Choose how often you receive tailored awareness messages based on your '
+      'usage patterns. Nothing is blocked — messages are for reflection only.';
   @override String get goalLevelNone => 'Off';
-  @override String get goalLevelMinimal => 'Light';
-  @override String get goalLevelNormal => 'Moderate';
-  @override String get goalLevelExtensive => 'Intense';
+  @override String get goalLevelMinimal => 'Occasional';
+  @override String get goalLevelNormal => 'Regular';
+  @override String get goalLevelExtensive => 'Frequent';
   @override String get goalRationaleNone =>
-      'Awareness only — no active feedback. Great for understanding '
-      'your patterns without pressure.';
+      'No messages — overlay counter only. Good for observing your '
+      'patterns without any interruption.';
   @override String get goalRationaleMinimal =>
-      'Light control with gentle reminders. Good for users who want '
-      'to stay aware without strong restrictions.';
+      'Relaxed thresholds — messages appear only when limits are well '
+      'exceeded. Good for staying aware without much interruption.';
   @override String get goalRationaleNormal =>
-      'Moderate control — balance between productivity and digital leisure. '
-      'Aligns with mental health expert recommendations for adults.';
+      'Moderate thresholds — periodic reminders when limits are reached. '
+      'Aligns with health expert recommendations for daily screen time.';
   @override String get goalRationaleExtensive =>
-      'Intense control with strict limits. Recommended for users aiming '
-      'to significantly reduce screen time.';
+      'Strict thresholds — frequent messages as soon as limits are hit. '
+      'Recommended for actively reducing screen time.';
   @override String get goalOverrideGlobal => 'Global';
-  @override String get goalSettingsTile => 'Usage goals';
-  @override String get goalSettingsSub => 'Feedback levels and per-app limits';
+  @override String get goalSettingsTile => 'Usage awareness';
+  @override String get goalSettingsSub => 'Message frequency and per-app thresholds';
 
   @override String get sectionData => 'Data & Privacy';
   @override String get deleteAllDataTitle => 'Delete all data';

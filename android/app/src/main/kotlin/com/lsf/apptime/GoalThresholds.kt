@@ -28,7 +28,7 @@ data class GoalThresholds(
             wakeupHour        = 0
         )
 
-        // 1=Light (relaxed), 2=Moderate, 3=Intense (strict)
+        // 1=Occasional (relaxed), 2=Regular (moderate), 3=Frequent (strict)
         fun forLevel(level: Int): GoalThresholds = when (level) {
             1 -> GoalThresholds(240, 60, 60, 20,  1, 7)
             2 -> GoalThresholds(150, 30, 40, 10, 23, 8)

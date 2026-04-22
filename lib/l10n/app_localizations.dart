@@ -173,6 +173,7 @@ abstract class AppLocalizations {
   // ── GoalScreen ───────────────────────────────────────────────────────────────
   String get goalScreenTitle;
   String get goalLevelSectionTitle;
+  String get goalLevelSectionCaption;
   String get goalLevelNone;
   String get goalLevelMinimal;
   String get goalLevelNormal;
