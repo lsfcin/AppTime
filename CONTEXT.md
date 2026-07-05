@@ -1,5 +1,6 @@
 # AppTime
 > Android app to reduce phone addiction through awareness, without blocking
+> goal: [startapps-apptime](../../brain/goals/startapps-apptime.md)
 
 Android app to reduce phone addiction through awareness — without blocking. A native floating overlay shows real-time session time for the active app and delivers behavioral nudges based on configurable goal levels.
 
@@ -102,18 +103,20 @@ Completed milestones → [HISTORY.md](HISTORY.md)
 | Subdirectory | Description |
 |--------------|-------------|
 | [`lib/`](lib/CONTEXT.md) | — |
+| [`refs/`](refs/CONTEXT.md) | Captured references for apptime — tier-1 links in [REFS.md](REFS.md); promote to |
 
 | File | Interface | API | Description |
 |------|-----------|-----|-------------|
 | [`HISTORY.md`](HISTORY.md) | — | — | AppTime — Condensed History |
 | [`README.md`](README.md) | — | — | AppTime |
 | [`ROADMAP.md`](ROADMAP.md) | — | — | AppTime — Roadmap |
+| [`SETUP.md`](SETUP.md) | — | — | AppTime Setup |
 | [`SPECS.md`](SPECS.md) | — | — | AppTime — Code Structure & Reference |
 | [`analysis_options.yaml`](analysis_options.yaml) | — | — | This file configures the analyzer, which statically analyzes Dart code to |
-| [`flutter_launcher_icons.yaml`](flutter_launcher_icons.yaml) | — | — | ← add first-line comment |
-| [`pubspec.yaml`](pubspec.yaml) | — | — | ← add first-line comment |
 | [`docs/privacy_policy.html`](docs/privacy_policy.html) | — | — | ← add first-line comment |
 | [`docs/store_listing.md`](docs/store_listing.md) | — | — | AppTime — Play Store Listing Copy |
+| [`flutter_launcher_icons.yaml`](flutter_launcher_icons.yaml) | — | — | ← add first-line comment |
+| [`pubspec.yaml`](pubspec.yaml) | — | — | ← add first-line comment |
 | [`test/goal_thresholds_test.dart`](test/goal_thresholds_test.dart) | [`test/goal_thresholds_test.dart.api`](test/goal_thresholds_test.dart.api) | — | Asserts that GoalThresholds.byLevel (Dart) matches GoalThresholds.kt (Kotlin). |
 | [`test/widget_test.dart`](test/widget_test.dart) | [`test/widget_test.dart.api`](test/widget_test.dart.api) | — | ← add first-line comment |
 <!-- routing:end -->
