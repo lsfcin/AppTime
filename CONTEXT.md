@@ -18,7 +18,6 @@ Android only · min SDK 23 · Flutter (UI) + Kotlin (overlay + monitoring). Full
   - Update SPECS.md whenever a module's responsibility, data flow, or key schema changes.
 
 Roadmap and pending milestones → [ROADMAP.md](ROADMAP.md)
-Completed milestones → [HISTORY.md](HISTORY.md)
 
 ## Current feature set
 
@@ -107,7 +106,6 @@ Completed milestones → [HISTORY.md](HISTORY.md)
 
 | File | Interface | API | Description |
 |------|-----------|-----|-------------|
-| [`HISTORY.md`](HISTORY.md) | — | — | AppTime — Condensed History |
 | [`README.md`](README.md) | — | — | AppTime |
 | [`ROADMAP.md`](ROADMAP.md) | — | — | AppTime — Roadmap |
 | [`SETUP.md`](SETUP.md) | — | — | AppTime Setup |

@@ -66,4 +66,4 @@ flutter build apk    # release APK
 | Last milestone | M19 — Security & privacy hardening |
 | Next | Play Store submission |
 
-Roadmap → [ROADMAP.md](ROADMAP.md) · History → [HISTORY.md](HISTORY.md)
+Roadmap → [ROADMAP.md](ROADMAP.md)
