@@ -1,0 +1,8 @@
+// analytics_service.dart
+class AppUsage
+class DaySummary
+  List<AppUsage> get topApps
+class AnalyticsService
+  List<DaySummary> getSummaries(int days)
+  static DateTime _anchor(DateTime dt)
+  static String _fmt(DateTime d)

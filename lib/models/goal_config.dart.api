@@ -1,0 +1,9 @@
+// goal_config.dart
+enum GoalLevel
+  none,       // 0 — counter only, no messages
+  minimal,    // 1 — Occasional: relaxed thresholds
+  normal,     // 2 — Regular: moderate thresholds
+  extensive,  // 3 — Frequent: strict thresholds
+class GoalThresholds
+  static const Map<GoalLevel, GoalThresholds> byLevel =
+  static GoalThresholds? forLevel(GoalLevel level)

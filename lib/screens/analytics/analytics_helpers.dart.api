@@ -1,0 +1,23 @@
+// analytics_helpers.dart
+class AppAgg
+  AppAgg(this.packageName);
+  int ms = 0;
+  int opens = 0;
+class LegendDot extends StatelessWidget
+  Widget build(BuildContext context)
+class LegendItem extends StatelessWidget
+  Widget build(BuildContext context)
+class Summary30dWidget extends StatelessWidget
+  static const _timeLabels = ['< 1h/dia', '1–2h/dia', '2–4h/dia', '4–6h/dia', '> 6h/dia'];
+  static const _timeColors = [
+  static const _unlockLabels = ['< 30/dia', '30–60/dia', '60–100/dia', '> 100/dia'];
+  static const _unlockColors = [
+  int get _tI
+  int get _uI
+  Widget build(BuildContext context)
+class HorizontalAppBars extends StatelessWidget
+  static const int _warnOpens = 35;
+  static const int _alertOpens = 70;
+  Widget build(BuildContext context)
+class DonutChart extends StatelessWidget
+  Widget build(BuildContext context)

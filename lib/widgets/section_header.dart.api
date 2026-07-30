@@ -1,0 +1,3 @@
+// section_header.dart
+class SectionHeader extends StatelessWidget
+  Widget build(BuildContext context)

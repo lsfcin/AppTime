@@ -1,0 +1,2 @@
+// app_localizations_en.dart
+class AppLocalizationsEn extends AppLocalizations

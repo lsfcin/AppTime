@@ -1,0 +1,3 @@
+// analytics_screen.dart
+class AnalyticsScreen extends StatefulWidget
+  State<AnalyticsScreen> createState()

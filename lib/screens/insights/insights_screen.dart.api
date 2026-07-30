@@ -1,0 +1,3 @@
+// insights_screen.dart
+class InsightsScreen extends StatefulWidget
+  State<InsightsScreen> createState()

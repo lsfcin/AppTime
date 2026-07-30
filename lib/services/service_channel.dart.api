@@ -1,0 +1,14 @@
+// service_channel.dart
+class ServiceChannel
+  static const _channel = MethodChannel(kServiceChannel);
+  static Future<void> startMonitoring()
+  static Future<void> stopMonitoring()
+  static Future<bool> isRunning() async
+  static Future<void> requestOverlayPermission()
+  static Future<bool> hasOverlayPermission() async
+  static Future<void> requestUsagePermission()
+  static Future<bool> hasUsagePermission() async
+  static Future<Map<String, String>> getInstalledAppLabels() async
+  static Future<Set<String>> getLaunchers() async
+  static Future<(
+  static Future<(

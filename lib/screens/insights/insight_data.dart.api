@@ -1,0 +1,4 @@
+// insight_data.dart
+class InsightData
+  static InsightData compute(StorageService s)
+  bool get hasData

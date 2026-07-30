@@ -1,0 +1,5 @@
+// app_info_service.dart
+class AppInfoService
+  Map<String, String> labels = const
+  Set<String> launchers = const
+  Future<void> load() async

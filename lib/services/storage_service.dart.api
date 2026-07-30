@@ -1,0 +1,63 @@
+// storage_service.dart
+class StorageService
+  StorageService._(this._prefs);
+  static Future<StorageService> init() async
+  String get overlayText
+  set overlayText(String v)
+  bool get overlayVisible
+  set overlayVisible(bool v)
+  double get overlayFontSize
+  set overlayFontSize(double v)
+  double get overlayTopDp
+  set overlayTopDp(double v)
+  bool get overlayShowBorder
+  set overlayShowBorder(bool v)
+  bool get overlayShowBackground
+  set overlayShowBackground(bool v)
+  bool get overlayEnabled
+  set overlayEnabled(bool v)
+  DateTime _dayAnchor(DateTime dt)
+  String _todayKey()
+  int getDailyMs(String packageName,
+  int getOpenCount(String packageName,
+  int getUnlockCount(
+  int getDeviceDailyMs(
+  int getDeviceHourlyMs(
+  int getHourlyUnlocks(
+  int getHourlyOpens(String packageName,
+  int getHourlyMs(String packageName,
+  List<int> getDeviceHourlyBreakdown(String date)
+  List<int> getHourlyUnlockBreakdown(String date)
+  Map<String, List<int>> getAppHourlyBreakdown(String date)
+  List<int> getSessionBuckets(
+  String _yesterdayKey()
+  int getTodayMs(String packageName)
+  int getYesterdayMs(String packageName)
+  int getDeviceTodayMs()
+  int getDeviceYesterdayMs()
+  int getUnlockToday()
+  int getUnlockYesterday()
+  List<String> packagesLast24h()
+  bool get monitorLauncher
+  set monitorLauncher(bool v)
+  Set<String> get disabledApps
+  set disabledApps(Set<String> apps)
+  void toggleApp(String packageName)
+  bool get onboardingDone
+  set onboardingDone(bool v)
+  bool get monitoringEverStarted
+  set monitoringEverStarted(bool v)
+  String? get languageCode
+  set languageCode(String? v)
+  int get goalLevel
+  set goalLevel(int v)
+  int getAppGoalLevel(String packageName)
+  void setAppGoalLevel(String packageName, int level)
+  String _fmt(DateTime d)
+  List<String> lastNDatesForWeekday(int weekday, int n)
+  List<int> avgDeviceHourlyMs(List<String> dates)
+  Map<String, List<int>> avgAppHourlyMs(List<String> dates)
+  Future<void> deleteAllData() async
+  Future<void> pruneOldData(
+  List<String> packagesDailyMs(String date)
+  List<String> _packagesFromIndex(String date)

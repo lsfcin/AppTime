@@ -1,0 +1,3 @@
+// settings_screen.dart
+class SettingsScreen extends StatefulWidget
+  State<SettingsScreen> createState()
