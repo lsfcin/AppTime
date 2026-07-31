@@ -104,17 +104,17 @@ Roadmap and pending milestones → [ROADMAP.md](ROADMAP.md)
 | [`lib/`](lib/CONTEXT.md) | — |
 | [`refs/`](refs/CONTEXT.md) | Captured references for apptime — tier-1 links in [REFS.md](REFS.md); promote to |
 
-| File | Interface | API | Description |
-|------|-----------|-----|-------------|
-| [`README.md`](README.md) | — | — | AppTime |
-| [`ROADMAP.md`](ROADMAP.md) | — | — | AppTime — Roadmap |
-| [`SETUP.md`](SETUP.md) | — | — | AppTime Setup |
-| [`SPECS.md`](SPECS.md) | — | — | AppTime — Code Structure & Reference |
-| [`analysis_options.yaml`](analysis_options.yaml) | — | — | This file configures the analyzer, which statically analyzes Dart code to |
-| [`docs/privacy_policy.html`](docs/privacy_policy.html) | — | — | ← add first-line comment |
-| [`docs/store_listing.md`](docs/store_listing.md) | — | — | AppTime — Play Store Listing Copy |
-| [`flutter_launcher_icons.yaml`](flutter_launcher_icons.yaml) | — | — | ← add first-line comment |
-| [`pubspec.yaml`](pubspec.yaml) | — | — | ← add first-line comment |
-| [`test/goal_thresholds_test.dart`](test/goal_thresholds_test.dart) | [`test/goal_thresholds_test.dart.api`](test/goal_thresholds_test.dart.api) | — | Asserts that GoalThresholds.byLevel (Dart) matches GoalThresholds.kt (Kotlin). |
-| [`test/widget_test.dart`](test/widget_test.dart) | [`test/widget_test.dart.api`](test/widget_test.dart.api) | — | ← add first-line comment |
+| File | Interface | Description |
+|------|-----------|-------------|
+| [`README.md`](README.md) | — | AppTime |
+| [`ROADMAP.md`](ROADMAP.md) | — | AppTime — Roadmap |
+| [`SETUP.md`](SETUP.md) | — | AppTime Setup |
+| [`SPECS.md`](SPECS.md) | — | AppTime — Code Structure & Reference |
+| [`analysis_options.yaml`](analysis_options.yaml) | — | This file configures the analyzer, which statically analyzes Dart code to |
+| [`docs/privacy_policy.html`](docs/privacy_policy.html) | — | ← add first-line comment |
+| [`docs/store_listing.md`](docs/store_listing.md) | — | AppTime — Play Store Listing Copy |
+| [`flutter_launcher_icons.yaml`](flutter_launcher_icons.yaml) | — | ← add first-line comment |
+| [`pubspec.yaml`](pubspec.yaml) | — | ← add first-line comment |
+| [`test/goal_thresholds_test.dart`](test/goal_thresholds_test.dart) | [`test/goal_thresholds_test.dart.api`](test/goal_thresholds_test.dart.api) | Asserts that GoalThresholds.byLevel (Dart) matches GoalThresholds.kt (Kotlin). |
+| [`test/widget_test.dart`](test/widget_test.dart) | [`test/widget_test.dart.api`](test/widget_test.dart.api) | ← add first-line comment |
 <!-- routing:end -->
