@@ -102,7 +102,7 @@ Roadmap and pending milestones → [ROADMAP.md](ROADMAP.md)
 | Subdirectory | Description |
 |--------------|-------------|
 | [`lib/`](lib/CONTEXT.md) | — |
-| [`refs/`](refs/CONTEXT.md) | Captured references for apptime — tier-1 links in [REFS.md](REFS.md); promote to |
+| [`refs/`](refs/CONTEXT.md) | Captured references for apptime — tier-1 links in [REFS.md](refs/REFS.md); promo |
 
 | File | Interface | Description |
 |------|-----------|-------------|
