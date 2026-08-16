@@ -65,3 +65,33 @@ x Declare `android:exported` on every `<activity>`, `<service>`, and `<receiver>
 #### 8. Post-launch minimum
 - Set up crash reporting (Firebase Crashlytics free tier, or just monitor Play's built-in ANR/crash dashboard)
 - Prepare a `1.0.1` patch plan for any day-one issues
+
+---
+
+## Workspace drift, refiled from the wos ledger 2026-08-16
+
+These were tracked in `/ROADMAP.md`, which was the wrong home: the files live here and no
+workspace-level commit can touch them. The wos ledger's own rule is that a pointer to another
+ROADMAP is a duplicate by definition. Counts regenerate in `/entropy.md`; never copy them here.
+
+- 🟡 **directories over the fanout cap** — `lib/screens/analytics` (18), `lib/screens` (15),
+  `lib/data` (14). Limits are `WARN_FILES=7` / `BLOCK_FILES=10` in `core/hooks/limits.env`.
+  **A split only pays once each new directory declares itself with a `CONTEXT.md`**: the routing
+  generator folds any directory under the warn back into its parent, so moving files without
+  writing that file leaves the parent's table exactly as long. A split that does not shrink the
+  parent table is the check being gamed, not answered.
+- 🟢 **`CONTEXT.md` hand-lists 40 files under `## File Map`.** The routing block below it is
+  generated from first-line comments and already owns inventory; the hand-written half is a second
+  copy that goes stale silently. Delete it — but read it first, because a hand list sometimes
+  exists to name files the generator cannot reach, and those need a generator fix rather than a
+  deletion.
+- 🟢 **no gate has ever been exercised on this repo.** The routing generator and the facade gate
+  both know `index.dart`, but Dart/Flutter has never run through them here, and `flutter` is an
+  undeclared dependency — `verify:fast` cannot run at all on a fresh clone. Expect the first pass
+  to find generator bugs rather than file problems; that has been true in every repo so far.
+
+Two hazards worth expecting, both learned the expensive way in `aiwbot` and `flows`:
+a new subdirectory turns a flat import into a module boundary, so the facade gate starts firing on
+imports that were legal the day before — re-export from the new facade rather than importing past
+it. And **grep this ROADMAP for a filename before calling it dead**: `flows` nearly lost five
+components that its own milestones had deliberately unwired and planned to reuse.
