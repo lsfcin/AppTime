@@ -68,11 +68,24 @@ x Declare `android:exported` on every `<activity>`, `<service>`, and `<receiver>
 
 ---
 
+## Lucas, INBOX 2026-08-17
+
+*"lançar o apptime, seguir as mudanças no timer/hover, permitir o dragndrop do hover se o usuário
+segurar o dedo lá"*
+
+- 🔴 **launch** — that is the milestone above; the ask is to finish it, not a new item.
+- 🟡 **follow through on the timer/hover changes** already in flight.
+- 🟡 **drag the overlay on long-press.** Note before designing: the overlay window is created with
+  `FLAG_NOT_TOUCHABLE` (`OverlayService.kt`), which is what keeps it from stealing touches from the
+  app underneath — dragging requires dropping that flag, so the two behaviours are in direct
+  tension. The shape that keeps both is a touchable window only while a long-press is held, or a
+  small touchable hit-area rather than the whole overlay. Decide that before writing the gesture.
+
 ## Workspace drift, refiled from the wos ledger 2026-08-16
 
 These were tracked in `/ROADMAP.md`, which was the wrong home: the files live here and no
 workspace-level commit can touch them. The wos ledger's own rule is that a pointer to another
-ROADMAP is a duplicate by definition. Counts regenerate in `/entropy.md`; never copy them here.
+ROADMAP is a duplicate by definition. Counts regenerate in `/ISSUES.md` § Entropy; never copy them here.
 
 - 🟡 **directories over the fanout cap** — `lib/screens/analytics` (18), `lib/screens` (15),
   `lib/data` (14). Limits are `WARN_FILES=7` / `BLOCK_FILES=10` in `core/hooks/limits.env`.
