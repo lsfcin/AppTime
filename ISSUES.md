@@ -174,7 +174,7 @@ Clean.
 
 *promote when the work is green, or say which reason applies — /roundup Phase 5*
 
-- code/apptime — feature/workspace-drift-refile is 2 ahead of main
+- code/apptime — feature/workspace-drift-refile is 3 ahead of main
 
 ### Remote branches already merged into their base
 
