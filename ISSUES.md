@@ -189,7 +189,7 @@ Clean.
 
 *two machines share this workspace — push it, or give the repo a remote to push to: code/SPECS-git.md § Push policy*
 
-- code/apptime — develop is 8 ahead of origin/develop
+- code/apptime — develop is 9 ahead of origin/develop
 
 ### Local branches already merged into their base
 
